@@ -1,0 +1,242 @@
+body {
+  font-family: 'Segoe UI', sans-serif;
+  background: #f5f6fa;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  margin: 0;
+  padding: 2rem;
+  min-height: 100vh;
+  transition: background-image 1s ease-in-out;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-color: rgba(255, 255, 255, 0.05);
+  z-index: -1;
+}
+
+.dashboard-container {
+  width: 90%;
+  max-width: 800px;
+  padding: 2rem;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 12px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  z-index: 1;
+}
+
+.clock {
+  font-size: 5rem;
+  text-align: center;
+  margin-bottom: 2rem;
+  font-weight: 300;
+}
+
+.app-row {
+  display: flex;
+  gap: 1.5rem;
+  justify-content: center;
+  margin-bottom: 2rem;
+}
+
+.app-icon {
+  width: 40px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.17);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.app-icon:hover {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.tool-panel summary {
+  font-size: 1.25rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0.5rem 0;
+}
+
+.resize-tool {
+  padding: 1rem 0;
+}
+
+.dropzone {
+  border: 2px dashed #aaa;
+  border-radius: 8px;
+  padding: 2rem;
+  text-align: center;
+  cursor: pointer;
+  background: #fafafa;
+  transition: border-color 0.3s;
+}
+
+.dropzone.dragover {
+  border-color: #0077cc;
+  background: #e9f5ff;
+}
+
+.file-list {
+  margin-top: 1rem;
+  font-size: 0.95rem;
+}
+
+button {
+  margin-top: 1rem;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  background: #0077cc;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+button:hover:enabled {
+  background: #005fa3;
+}
+
+.progress-container {
+  margin-top: 1rem;
+  width: 100%;
+  background: #ddd;
+  border-radius: 8px;
+  height: 16px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  width: 0%;
+  background: #0077cc;
+  transition: width 0.3s;
+}
+
+.status {
+  margin-top: 1rem;
+  font-size: 0.9rem;
+  white-space: pre-wrap;
+}
+.app-content {
+  width: 100%;
+  margin-top: 2rem;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.resize-tool h2 {
+  margin-top: 0;
+}
+
+.weather-widget h2 {
+  margin-top: 0;
+}
+
+.weather-widget {
+  text-align: center;
+}
+
+.calculator {
+  max-width: 300px;
+  margin: auto;
+  text-align: center;
+}
+
+.calc-display {
+  background: #eee;
+  padding: 1rem;
+  font-size: 1.5rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  min-height: 2.5rem;
+}
+
+.calc-buttons {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.calc-buttons button {
+  padding: 1rem;
+  font-size: 1.2rem;
+  border: none;
+  border-radius: 6px;
+  background: #f0f0f0;
+  color: black;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.calc-buttons button:hover {
+  background: #ddd;
+  color: black;
+}
+
+.calc-buttons .clear {
+  grid-column: span 4;
+  background: #ffb3b3;
+}
+
+.calc-buttons .clear:hover {
+  background: #ff8c8c;
+}
+
+.notes-app {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.notes-app textarea {
+  width: 100%;
+  max-width: 600px;
+  height: 200px;
+  padding: 1rem;
+  font-size: 1rem;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  resize: vertical;
+}
+
+.notes-app button {
+  margin-top: 1rem;
+  padding: 0.5rem 1.25rem;
+  font-size: 1rem;
+  background: #0077cc;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.notes-app button:hover {
+  background: #005fa3;
+}

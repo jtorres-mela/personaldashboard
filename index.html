@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>My Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="dashboard-container">
+
+    <!-- Clock Display -->
+    <div class="clock" id="clock"></div>
+
+    <!-- App Icon Row -->
+    <div class="app-row">
+      <div class="app-icon" data-app="resize" title="Resize Tool">📷</div>
+      <div class="app-icon" data-app="weather" title="Weather">🌤️</div>
+      <div class="app-icon" data-app="calc" title="Calculator">🧮</div>
+
+      <div class="app-icon" data-app="notes" title="Notes">📝</div>
+    </div>
+
+    <!-- Dynamic App Display Area -->
+    <div class="app-content" id="appContent"></div>
+
+  </div>
+
+  <!-- App Templates (hidden) -->
+  <template id="app-resize">
+    <div class="resize-tool">
+      <h2>📷 Image File Size Reducer</h2>
+      <p>Drop images below or click to upload. JPGs and PNGs supported.</p>
+      <div id="dropzone" class="dropzone">
+        <input type="file" id="imageInput" accept="image/*" multiple hidden />
+        <p>Click or Drag & Drop images here</p>
+      </div>
+      <div id="fileList" class="file-list"></div>
+      <button id="compressBtn" disabled>Compress & Download ZIP</button>
+      <div class="progress-container" id="progressContainer" style="display:none;">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+      <div id="status" class="status"></div>
+    </div>
+  </template>
+
+  <template id="app-weather">
+  <div class="weather-widget">
+    <h2>🌤️ Idaho Falls Weather</h2>
+    <div id="weatherData">Loading...</div>
+  </div>
+</template>
+<template id="app-calc">
+  <div class="calculator">
+    <h2>🧮 Calculator</h2>
+    <div class="calc-display" id="calcDisplay">0</div>
+    <div class="calc-buttons">
+      <button data-value="7">7</button>
+      <button data-value="8">8</button>
+      <button data-value="9">9</button>
+      <button data-value="/">÷</button>
+      <button data-value="4">4</button>
+      <button data-value="5">5</button>
+      <button data-value="6">6</button>
+      <button data-value="*">×</button>
+      <button data-value="1">1</button>
+      <button data-value="2">2</button>
+      <button data-value="3">3</button>
+      <button data-value="-">−</button>
+      <button data-value="0">0</button>
+      <button data-value=".">.</button>
+      <button data-value="=">=</button>
+      <button data-value="+">+</button>
+      <button data-value="C" class="clear">C</button>
+    </div>
+  </div>
+</template>
+<template id="app-notes">
+  <div class="notes-app">
+    <h2>📝 Notes</h2>
+    <textarea id="notesArea" placeholder="Type your notes here..."></textarea>
+    <button id="saveNotesBtn">Save</button>
+    <div id="notesSavedStatus" class="status" style="margin-top: 0.5rem;"></div>
+  </div>
+</template>
+
+  <!-- Scripts -->
+<!-- Scripts -->
+<script src="browser-image-compression.min.js"></script>
+<script src="jszip.min.js"></script>
+<script src="script.js"></script>
+<script>
+  // Clock Function
+  function updateClock() {
+    const clock = document.getElementById('clock');
+    const now = new Date();
+    clock.textContent = now.toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  // Dynamic App Launcher
+  const appContent = document.getElementById('appContent');
+  const icons = document.querySelectorAll('.app-icon');
+
+  icons.forEach(icon => {
+    icon.addEventListener('click', () => {
+      const appId = icon.dataset.app;
+      const template = document.getElementById(`app-${appId}`);
+      if (template) {
+        appContent.innerHTML = ''; // Clear previous app
+        const clone = template.content.cloneNode(true);
+        appContent.appendChild(clone);
+
+if (appId === 'resize') {
+  const imageInput = document.getElementById('imageInput');
+  const dropzone = document.getElementById('dropzone');
+  const fileList = document.getElementById('fileList');
+  const compressBtn = document.getElementById('compressBtn');
+  const progressBar = document.getElementById('progressBar');
+  const progressContainer = document.getElementById('progressContainer');
+  const status = document.getElementById('status');
+
+  let selectedFiles = [];
+
+  dropzone.addEventListener('click', () => imageInput.click());
+
+  dropzone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropzone.classList.add('dragover');
+  });
+
+  dropzone.addEventListener('dragleave', () => {
+    dropzone.classList.remove('dragover');
+  });
+
+  dropzone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropzone.classList.remove('dragover');
+    handleFiles(e.dataTransfer.files);
+  });
+
+  imageInput.addEventListener('change', () => {
+    handleFiles(imageInput.files);
+  });
+
+  function handleFiles(files) {
+    selectedFiles = [...files].filter(file =>
+      file.type === 'image/jpeg' || file.type === 'image/png'
+    );
+
+    if (selectedFiles.length > 0) {
+      compressBtn.disabled = false;
+      fileList.innerHTML = selectedFiles.map(f => `<div>${f.name}</div>`).join('');
+    } else {
+      compressBtn.disabled = true;
+      fileList.innerHTML = '<div>No valid images selected</div>';
+    }
+  }
+
+  compressBtn.addEventListener('click', async () => {
+    compressBtn.disabled = true;
+    progressContainer.style.display = 'block';
+    progressBar.style.width = '0%';
+    status.textContent = '';
+
+    const zip = new JSZip();
+    const total = selectedFiles.length;
+
+    for (let i = 0; i < total; i++) {
+      const file = selectedFiles[i];
+      const compressedFile = await imageCompression(file, {
+        maxSizeMB: 1,
+        maxWidthOrHeight: 1920,
+        useWebWorker: true
+      });
+
+      zip.file(file.name, compressedFile);
+      const percent = Math.round(((i + 1) / total) * 100);
+      progressBar.style.width = percent + '%';
+    }
+
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'compressed_images.zip';
+    a.click();
+
+    compressBtn.disabled = false;
+    progressContainer.style.display = 'none';
+    status.textContent = 'Download complete ✔️';
+  });
+}
+
+
+if (appId === 'notes') {
+  const notesArea = document.getElementById('notesArea');
+  const saveBtn = document.getElementById('saveNotesBtn');
+  const status = document.getElementById('notesSavedStatus');
+  const notesKey = 'dashboardNotes';
+
+  // Load saved note
+  const saved = localStorage.getItem(notesKey);
+  if (saved) notesArea.value = saved;
+
+  // Save note on click
+  saveBtn.addEventListener('click', () => {
+    localStorage.setItem(notesKey, notesArea.value);
+    status.textContent = 'Note saved ✔️';
+    setTimeout(() => { status.textContent = ''; }, 2000);
+  });
+}
+
+
+        if (appId === 'weather') {
+          const apiKey = 'f89fb45792d07ec56ed83731f4124b24';
+          const city = 'Idaho Falls';
+          const units = 'imperial';
+          const cacheKey = 'weatherCache';
+          const cacheDuration = 10 * 60 * 1000;
+
+          const weatherDiv = document.getElementById('weatherData');
+          if (!weatherDiv) return;
+
+          weatherDiv.textContent = 'Loading...';
+
+          const cached = JSON.parse(localStorage.getItem(cacheKey) || '{}');
+          const now = Date.now();
+
+          if (cached.timestamp && now - cached.timestamp < cacheDuration) {
+            displayWeather(cached.data);
+          } else {
+            fetch(`https://api.openweathermap.org/data/2.5/weather?q=${city}&units=${units}&appid=${apiKey}`)
+              .then(res => res.json())
+              .then(data => {
+                if (data.cod !== 200) throw new Error('Invalid response');
+                localStorage.setItem(cacheKey, JSON.stringify({ data, timestamp: now }));
+                displayWeather(data);
+              })
+              .catch(() => {
+                weatherDiv.textContent = 'Unable to load weather data.';
+              });
+          }
+
+          function displayWeather(data) {
+            const temp = Math.round(data.main.temp);
+            const condition = data.weather[0].description;
+            const icon = data.weather[0].icon;
+            const iconUrl = `https://openweathermap.org/img/wn/${icon}@2x.png`;
+
+            weatherDiv.innerHTML = `
+              <div style="display:flex; align-items:center; gap:10px; justify-content:center;">
+                <img src="${iconUrl}" alt="${condition}" style="width:48px;height:48px;" />
+                <div>
+                  <strong>${temp}°F</strong><br>
+                  <small style="text-transform:capitalize;">${condition}</small>
+                </div>
+              </div>
+            `;
+          }
+        }
+
+        if (appId === 'calc') {
+          const display = document.getElementById('calcDisplay');
+          let expression = '';
+
+          document.querySelectorAll('.calc-buttons button').forEach(button => {
+            button.addEventListener('click', () => {
+              const val = button.dataset.value;
+              if (val === 'C') {
+                expression = '';
+                display.textContent = '0';
+              } else if (val === '=') {
+                try {
+                  const result = eval(expression);
+                  display.textContent = result;
+                  expression = result.toString();
+                } catch {
+                  display.textContent = 'Error';
+                  expression = '';
+                }
+              } else {
+                expression += val;
+                display.textContent = expression;
+              }
+            });
+          });
+        }
+      } else {
+        appContent.innerHTML = `<p style="text-align:center;opacity:0.6;">App not available yet</p>`;
+      }
+    });
+  });
+</script>
+
+
+
+</body>
+</html>
