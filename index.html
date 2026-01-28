@@ -3,301 +3,840 @@
 <head>
   <meta charset="UTF-8">
   <title>My Dashboard</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=6">
 </head>
 <body>
   <div class="dashboard-container">
-
     <!-- Clock Display -->
     <div class="clock" id="clock"></div>
 
     <!-- App Icon Row -->
     <div class="app-row">
-      <div class="app-icon" data-app="resize" title="Resize Tool">📷</div>
-      <div class="app-icon" data-app="weather" title="Weather">🌤️</div>
-      <div class="app-icon" data-app="calc" title="Calculator">🧮</div>
-
+      <div class="app-icon" data-app="calc" title="Calculator">🔢</div>
       <div class="app-icon" data-app="notes" title="Notes">📝</div>
+      <div class="app-icon" data-app="tasks" title="Daily Tasks">✅</div>
+      <div class="app-icon" data-app="calendar" title="Calendar">📅</div>
+      <div class="app-icon" data-app="jokes" title="Dad Jokes">😂</div>
     </div>
 
     <!-- Dynamic App Display Area -->
     <div class="app-content" id="appContent"></div>
-
   </div>
 
   <!-- App Templates (hidden) -->
-  <template id="app-resize">
-    <div class="resize-tool">
-      <h2>📷 Image File Size Reducer</h2>
-      <p>Drop images below or click to upload. JPGs and PNGs supported.</p>
-      <div id="dropzone" class="dropzone">
-        <input type="file" id="imageInput" accept="image/*" multiple hidden />
-        <p>Click or Drag & Drop images here</p>
+  <template id="app-calc">
+    <div class="calculator">
+      <div class="calc-top">
+        <div>
+          <h2> 🔢 Calculator</h2>
+          <div class="calc-status"></div>
+        </div>
+        <div class="calc-display" id="calcDisplay">
+          <div id="calcExpression" class="calc-expression">0</div>
+          <div id="calcResult" class="calc-result">0</div>
+        </div>
       </div>
-      <div id="fileList" class="file-list"></div>
-      <button id="compressBtn" disabled>Compress & Download ZIP</button>
-      <div class="progress-container" id="progressContainer" style="display:none;">
-        <div class="progress-bar" id="progressBar"></div>
+      <div class="calc-body">
+        <div class="calc-buttons">
+          <button data-action="clear" class="muted">AC</button>
+          <button data-action="backspace" class="muted">⌫</button>
+          <button data-value="/" class="operator">÷</button>
+          <button data-value="*" class="operator">×</button>
+
+          <button data-value="7">7</button>
+          <button data-value="8">8</button>
+          <button data-value="9">9</button>
+          <button data-value="-" class="operator">−</button>
+
+          <button data-value="4">4</button>
+          <button data-value="5">5</button>
+          <button data-value="6">6</button>
+          <button data-value="+" class="operator">+</button>
+
+          <button data-value="1">1</button>
+          <button data-value="2">2</button>
+          <button data-value="3">3</button>
+          <button data-action="equals" class="accent span-two-row">=</button>
+
+          <button data-value="0" class="span-two">0</button>
+          <button data-value=".">.</button>
+        </div>
+        <div class="calc-history">
+          <div class="calc-history__title">History</div>
+          <div id="calcHistory" class="calc-history__list">
+            <div class="calc-history__empty">No calculations yet</div>
+          </div>
+        </div>
       </div>
-      <div id="status" class="status"></div>
+    </div>
+  </template>
+  <template id="app-notes">
+    <div class="notes-app">
+      <h2>📝 Notes</h2>
+      <div class="notes-layout">
+        <div class="notes-sidebar">
+          <button id="newNoteBtn" class="notes-primary">+ New Note</button>
+          <div id="noteList" class="note-list"></div>
+        </div>
+        <div class="notes-main">
+          <input id="noteTitle" type="text" placeholder="Note title" aria-label="Note title">
+          <textarea id="notesArea" placeholder="Type your notes here..." aria-label="Note body"></textarea>
+          <div class="note-actions">
+            <button id="deleteNoteBtn" class="notes-danger">Delete Note</button>
+          </div>
+          <div id="notesSavedStatus" class="status" style="margin-top: 0.25rem;"></div>
+        </div>
+      </div>
+    </div>
+  </template>
+  <template id="app-tasks">
+    <div class="tasks-app">
+      <h2>✅ Daily Tasks</h2>
+      <p class="tasks-subtitle">Track what you worked on.</p>
+      <div class="task-entry">
+        <input id="taskName" type="text" placeholder="Task name" aria-label="Task name">
+        <input id="taskHours" type="number" min="0" step="0.25" placeholder="Hours" aria-label="Hours spent">
+        <button id="addTaskBtn">Add Task</button>
+      </div>
+      <div class="task-table">
+        <div class="task-table__header">
+          <span>Task</span>
+          <span>Hours</span>
+          <span>Action</span>
+        </div>
+        <div id="taskList" class="task-table__body"></div>
+        <div class="task-table__footer">
+          <span>Total today</span>
+          <strong id="totalHours">0</strong>
+          <span></span>
+        </div>
+      </div>
+      <div class="task-actions">
+        <button id="copyTasksBtn">Copy tasks</button>
+        <span id="copyTasksStatus" class="status"></span>
+      </div>
+      <div id="taskError" class="status tasks-error" aria-live="polite"></div>
+    </div>
+  </template>
+  <template id="app-calendar">
+    <div class="calendar-app">
+      <div class="calendar-header">
+        <div>
+          <h2>📅 Calendar</h2>
+          <div class="calendar-subtitle">Plan days and see linked tasks</div>
+        </div>
+        <div class="calendar-nav">
+          <button id="calPrev">←</button>
+          <div id="calMonthLabel"></div>
+          <button id="calNext">→</button>
+        </div>
+      </div>
+      <div class="calendar-body">
+        <div class="calendar-month">
+          <div class="calendar-weekdays">
+            <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+          </div>
+          <div id="calGrid" class="calendar-grid"></div>
+        </div>
+        <div class="calendar-day">
+          <div class="calendar-day__header">
+            <div>
+              <div class="calendar-day__label">Selected day</div>
+              <div id="calSelectedDate" class="calendar-day__title"></div>
+            </div>
+            <button id="calToday" class="calendar-today-btn">Today</button>
+          </div>
+
+          <div class="calendar-section">
+            <h4>Add event</h4>
+            <div class="calendar-form">
+              <input id="calEventTitle" type="text" placeholder="Title">
+              <input id="calEventTime" type="time">
+              <input id="calEventDesc" type="text" placeholder="Details (optional)">
+              <button id="calAddEvent">Add</button>
+            </div>
+          </div>
+
+          <div class="calendar-section">
+            <h4>Events</h4>
+            <div id="calEventsList" class="calendar-list"></div>
+          </div>
+
+          <div class="calendar-section">
+            <h4>Tasks for this day</h4>
+            <div class="calendar-form">
+              <input id="calTaskName" type="text" placeholder="Task name">
+              <input id="calTaskHours" type="number" min="0" step="0.25" placeholder="Hours">
+              <button id="calAddTask">Add task</button>
+            </div>
+            <div id="calTasksList" class="calendar-list"></div>
+            <div id="calTasksTotal" class="calendar-total"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </template>
+  <template id="app-jokes">
+    <div class="joke-app">
+      <div>
+        <h2>😂 Dad Jokes</h2>
+        
+      </div>
+      <div class="joke-card">
+        <div id="jokeText" class="joke-text">Click the button to hear a dad joke.</div>
+        <div class="joke-actions">
+          <button id="jokeBtn">New joke</button>
+          <span id="jokeStatus" class="status"></span>
+        </div>
+      </div>
     </div>
   </template>
 
-  <template id="app-weather">
-  <div class="weather-widget">
-    <h2>🌤️ Idaho Falls Weather</h2>
-    <div id="weatherData">Loading...</div>
-  </div>
-</template>
-<template id="app-calc">
-  <div class="calculator">
-    <h2>🧮 Calculator</h2>
-    <div class="calc-display" id="calcDisplay">0</div>
-    <div class="calc-buttons">
-      <button data-value="7">7</button>
-      <button data-value="8">8</button>
-      <button data-value="9">9</button>
-      <button data-value="/">÷</button>
-      <button data-value="4">4</button>
-      <button data-value="5">5</button>
-      <button data-value="6">6</button>
-      <button data-value="*">×</button>
-      <button data-value="1">1</button>
-      <button data-value="2">2</button>
-      <button data-value="3">3</button>
-      <button data-value="-">−</button>
-      <button data-value="0">0</button>
-      <button data-value=".">.</button>
-      <button data-value="=">=</button>
-      <button data-value="+">+</button>
-      <button data-value="C" class="clear">C</button>
-    </div>
-  </div>
-</template>
-<template id="app-notes">
-  <div class="notes-app">
-    <h2>📝 Notes</h2>
-    <textarea id="notesArea" placeholder="Type your notes here..."></textarea>
-    <button id="saveNotesBtn">Save</button>
-    <div id="notesSavedStatus" class="status" style="margin-top: 0.5rem;"></div>
-  </div>
-</template>
-
   <!-- Scripts -->
-<!-- Scripts -->
-<script src="browser-image-compression.min.js"></script>
-<script src="jszip.min.js"></script>
-<script src="script.js"></script>
-<script>
-  // Clock Function
-  function updateClock() {
-    const clock = document.getElementById('clock');
-    const now = new Date();
-    clock.textContent = now.toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    });
-  }
-  setInterval(updateClock, 1000);
-  updateClock();
+  <script src="script.js?v=8"></script>
+  <script>
+    let activeApp = null;
+    let activeTeardown = null;
 
-  // Dynamic App Launcher
-  const appContent = document.getElementById('appContent');
-  const icons = document.querySelectorAll('.app-icon');
-
-  icons.forEach(icon => {
-    icon.addEventListener('click', () => {
-      const appId = icon.dataset.app;
-      const template = document.getElementById(`app-${appId}`);
-      if (template) {
-        appContent.innerHTML = ''; // Clear previous app
-        const clone = template.content.cloneNode(true);
-        appContent.appendChild(clone);
-
-if (appId === 'resize') {
-  const imageInput = document.getElementById('imageInput');
-  const dropzone = document.getElementById('dropzone');
-  const fileList = document.getElementById('fileList');
-  const compressBtn = document.getElementById('compressBtn');
-  const progressBar = document.getElementById('progressBar');
-  const progressContainer = document.getElementById('progressContainer');
-  const status = document.getElementById('status');
-
-  let selectedFiles = [];
-
-  dropzone.addEventListener('click', () => imageInput.click());
-
-  dropzone.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    dropzone.classList.add('dragover');
-  });
-
-  dropzone.addEventListener('dragleave', () => {
-    dropzone.classList.remove('dragover');
-  });
-
-  dropzone.addEventListener('drop', (e) => {
-    e.preventDefault();
-    dropzone.classList.remove('dragover');
-    handleFiles(e.dataTransfer.files);
-  });
-
-  imageInput.addEventListener('change', () => {
-    handleFiles(imageInput.files);
-  });
-
-  function handleFiles(files) {
-    selectedFiles = [...files].filter(file =>
-      file.type === 'image/jpeg' || file.type === 'image/png'
-    );
-
-    if (selectedFiles.length > 0) {
-      compressBtn.disabled = false;
-      fileList.innerHTML = selectedFiles.map(f => `<div>${f.name}</div>`).join('');
-    } else {
-      compressBtn.disabled = true;
-      fileList.innerHTML = '<div>No valid images selected</div>';
-    }
-  }
-
-  compressBtn.addEventListener('click', async () => {
-    compressBtn.disabled = true;
-    progressContainer.style.display = 'block';
-    progressBar.style.width = '0%';
-    status.textContent = '';
-
-    const zip = new JSZip();
-    const total = selectedFiles.length;
-
-    for (let i = 0; i < total; i++) {
-      const file = selectedFiles[i];
-      const compressedFile = await imageCompression(file, {
-        maxSizeMB: 1,
-        maxWidthOrHeight: 1920,
-        useWebWorker: true
+    // Clock Function
+    function updateClock() {
+      const clock = document.getElementById('clock');
+      const now = new Date();
+      clock.textContent = now.toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
       });
-
-      zip.file(file.name, compressedFile);
-      const percent = Math.round(((i + 1) / total) * 100);
-      progressBar.style.width = percent + '%';
     }
+    setInterval(updateClock, 1000);
+    updateClock();
 
-    const blob = await zip.generateAsync({ type: 'blob' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'compressed_images.zip';
-    a.click();
+    // Dynamic App Launcher
+    const appContent = document.getElementById('appContent');
+    const icons = document.querySelectorAll('.app-icon');
 
-    compressBtn.disabled = false;
-    progressContainer.style.display = 'none';
-    status.textContent = 'Download complete ✔️';
-  });
-}
-
-
-if (appId === 'notes') {
-  const notesArea = document.getElementById('notesArea');
-  const saveBtn = document.getElementById('saveNotesBtn');
-  const status = document.getElementById('notesSavedStatus');
-  const notesKey = 'dashboardNotes';
-
-  // Load saved note
-  const saved = localStorage.getItem(notesKey);
-  if (saved) notesArea.value = saved;
-
-  // Save note on click
-  saveBtn.addEventListener('click', () => {
-    localStorage.setItem(notesKey, notesArea.value);
-    status.textContent = 'Note saved ✔️';
-    setTimeout(() => { status.textContent = ''; }, 2000);
-  });
-}
-
-
-        if (appId === 'weather') {
-          const apiKey = 'f89fb45792d07ec56ed83731f4124b24';
-          const city = 'Idaho Falls';
-          const units = 'imperial';
-          const cacheKey = 'weatherCache';
-          const cacheDuration = 10 * 60 * 1000;
-
-          const weatherDiv = document.getElementById('weatherData');
-          if (!weatherDiv) return;
-
-          weatherDiv.textContent = 'Loading...';
-
-          const cached = JSON.parse(localStorage.getItem(cacheKey) || '{}');
-          const now = Date.now();
-
-          if (cached.timestamp && now - cached.timestamp < cacheDuration) {
-            displayWeather(cached.data);
-          } else {
-            fetch(`https://api.openweathermap.org/data/2.5/weather?q=${city}&units=${units}&appid=${apiKey}`)
-              .then(res => res.json())
-              .then(data => {
-                if (data.cod !== 200) throw new Error('Invalid response');
-                localStorage.setItem(cacheKey, JSON.stringify({ data, timestamp: now }));
-                displayWeather(data);
-              })
-              .catch(() => {
-                weatherDiv.textContent = 'Unable to load weather data.';
-              });
+    icons.forEach(icon => {
+      icon.addEventListener('click', () => {
+        const appId = icon.dataset.app;
+        if (activeApp === appId) {
+          if (typeof activeTeardown === 'function') {
+            activeTeardown();
+            activeTeardown = null;
           }
-
-          function displayWeather(data) {
-            const temp = Math.round(data.main.temp);
-            const condition = data.weather[0].description;
-            const icon = data.weather[0].icon;
-            const iconUrl = `https://openweathermap.org/img/wn/${icon}@2x.png`;
-
-            weatherDiv.innerHTML = `
-              <div style="display:flex; align-items:center; gap:10px; justify-content:center;">
-                <img src="${iconUrl}" alt="${condition}" style="width:48px;height:48px;" />
-                <div>
-                  <strong>${temp}°F</strong><br>
-                  <small style="text-transform:capitalize;">${condition}</small>
-                </div>
-              </div>
-            `;
-          }
+          appContent.innerHTML = '';
+          activeApp = null;
+          return;
         }
 
-        if (appId === 'calc') {
-          const display = document.getElementById('calcDisplay');
-          let expression = '';
+        if (typeof activeTeardown === 'function') {
+          activeTeardown();
+          activeTeardown = null;
+        }
 
-          document.querySelectorAll('.calc-buttons button').forEach(button => {
-            button.addEventListener('click', () => {
-              const val = button.dataset.value;
-              if (val === 'C') {
-                expression = '';
-                display.textContent = '0';
-              } else if (val === '=') {
-                try {
-                  const result = eval(expression);
-                  display.textContent = result;
-                  expression = result.toString();
-                } catch {
-                  display.textContent = 'Error';
-                  expression = '';
-                }
-              } else {
-                expression += val;
-                display.textContent = expression;
+        const template = document.getElementById(`app-${appId}`);
+        if (template) {
+          appContent.innerHTML = ''; // Clear previous app
+          const clone = template.content.cloneNode(true);
+          appContent.appendChild(clone);
+          activeApp = appId;
+          let teardownFn = null;
+
+          if (appId === 'notes') {
+            const notesArea = document.getElementById('notesArea');
+            const noteTitle = document.getElementById('noteTitle');
+            const noteList = document.getElementById('noteList');
+            const newNoteBtn = document.getElementById('newNoteBtn');
+            const deleteNoteBtn = document.getElementById('deleteNoteBtn');
+            const status = document.getElementById('notesSavedStatus');
+            const storageKey = 'dashboardNotesList';
+
+            let notes = [];
+            let activeId = null;
+            let statusTimeout;
+
+            const setStatus = (message) => {
+              clearTimeout(statusTimeout);
+              status.textContent = message;
+              if (message) {
+                statusTimeout = setTimeout(() => { status.textContent = ''; }, 1400);
               }
+            };
+
+            const persist = () => {
+              localStorage.setItem(storageKey, JSON.stringify(notes));
+            };
+
+            const renderList = () => {
+              noteList.innerHTML = '';
+              notes.forEach(note => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = `note-tab${note.id === activeId ? ' active' : ''}`;
+                btn.textContent = note.title || 'Untitled';
+                btn.addEventListener('click', () => selectNote(note.id));
+                noteList.appendChild(btn);
+              });
+            };
+
+            const selectNote = (id) => {
+              const note = notes.find(n => n.id === id);
+              if (!note) return;
+              activeId = id;
+              noteTitle.value = note.title;
+              notesArea.value = note.body;
+              renderList();
+            };
+
+            const ensureNotes = () => {
+              if (!Array.isArray(notes)) notes = [];
+              if (notes.length === 0) {
+                const id = crypto.randomUUID?.() || Date.now().toString();
+                notes = [{ id, title: 'New note', body: '', updatedAt: Date.now() }];
+              }
+              if (!activeId || !notes.some(n => n.id === activeId)) {
+                activeId = notes[0].id;
+              }
+            };
+
+            const saveActive = () => {
+              const note = notes.find(n => n.id === activeId);
+              if (!note) return;
+              note.title = noteTitle.value.trim() || 'Untitled';
+              note.body = notesArea.value;
+              note.updatedAt = Date.now();
+              persist();
+              renderList();
+              setStatus('Saved');
+            };
+
+            const addNote = () => {
+              const id = crypto.randomUUID?.() || Date.now().toString();
+              const newNote = { id, title: 'New note', body: '', updatedAt: Date.now() };
+              notes.unshift(newNote);
+              activeId = id;
+              persist();
+              selectNote(id);
+              setStatus('New note added');
+            };
+
+            const deleteNote = () => {
+              if (!activeId) return;
+              notes = notes.filter(n => n.id !== activeId);
+              ensureNotes();
+              persist();
+              selectNote(activeId);
+              setStatus('Note deleted');
+            };
+
+            // Event bindings
+            newNoteBtn.addEventListener('click', addNote);
+            deleteNoteBtn.addEventListener('click', deleteNote);
+            noteTitle.addEventListener('input', saveActive);
+            notesArea.addEventListener('input', saveActive);
+
+            // Load notes
+            try {
+              const saved = JSON.parse(localStorage.getItem(storageKey) || '[]');
+              if (Array.isArray(saved)) notes = saved;
+            } catch {
+              notes = [];
+            }
+
+            ensureNotes();
+            renderList();
+            selectNote(activeId);
+          }
+
+          if (appId === 'calc') {
+            const exprEl = document.getElementById('calcExpression');
+            const resultEl = document.getElementById('calcResult');
+            const historyEl = document.getElementById('calcHistory');
+            const buttons = document.querySelectorAll('.calc-buttons button');
+
+            let expression = '';
+            const history = [];
+
+            const renderHistory = () => {
+              historyEl.innerHTML = '';
+              if (history.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'calc-history__empty';
+                empty.textContent = 'No calculations yet';
+                historyEl.appendChild(empty);
+                return;
+              }
+
+              history.slice(-6).reverse().forEach(item => {
+                const row = document.createElement('div');
+                row.className = 'calc-history__item';
+                row.innerHTML = `<span>${item.expr}</span><strong>${item.result}</strong>`;
+                historyEl.appendChild(row);
+              });
+            };
+
+            const updateDisplay = (expr, res) => {
+              exprEl.textContent = expr || '0';
+              resultEl.textContent = res ?? '0';
+            };
+
+            const evaluateExpression = () => {
+              if (!expression) return null;
+              try {
+                const sanitized = expression.replace(/[^0-9+\-*/.() ]/g, '');
+                const value = Function(`"use strict"; return (${sanitized})`)();
+                if (typeof value === 'number' && Number.isFinite(value)) {
+                  return value;
+                }
+              } catch {
+                return null;
+              }
+              return null;
+            };
+
+            const addToHistory = (expr, res) => {
+              history.push({ expr, result: res });
+              renderHistory();
+            };
+
+            const appendValue = (val) => {
+              expression += val;
+              const preview = evaluateExpression();
+              updateDisplay(expression, preview !== null ? preview : '...');
+            };
+
+            const clearAll = () => {
+              expression = '';
+              updateDisplay('0', '0');
+            };
+
+            const backspace = () => {
+              expression = expression.slice(0, -1);
+              const preview = evaluateExpression();
+              updateDisplay(expression || '0', preview !== null ? preview : '0');
+            };
+
+            const calculate = () => {
+              const result = evaluateExpression();
+              if (result === null) {
+                updateDisplay('Error', '0');
+                expression = '';
+                return;
+              }
+              addToHistory(expression, result);
+              expression = result.toString();
+              updateDisplay(expression, result);
+            };
+
+            buttons.forEach(button => {
+              const val = button.dataset.value;
+              const action = button.dataset.action;
+              button.addEventListener('click', () => {
+                if (action === 'clear') return clearAll();
+                if (action === 'backspace') return backspace();
+                if (action === 'equals') return calculate();
+                if (val) appendValue(val);
+              });
             });
-          });
+
+            const handleKeyDown = (e) => {
+              const key = e.key;
+              const allowed = '0123456789.+-*/()';
+              if (allowed.includes(key)) {
+                appendValue(key);
+              } else if (key === 'Enter' || key === '=') {
+                e.preventDefault();
+                calculate();
+              } else if (key === 'Backspace') {
+                backspace();
+              } else if (key === 'Escape') {
+                clearAll();
+              }
+            };
+
+            window.addEventListener('keydown', handleKeyDown);
+            teardownFn = () => window.removeEventListener('keydown', handleKeyDown);
+
+            updateDisplay('0', '0');
+            renderHistory();
+          }
+
+          if (appId === 'tasks') {
+            const nameInput = document.getElementById('taskName');
+            const hoursInput = document.getElementById('taskHours');
+            const addBtn = document.getElementById('addTaskBtn');
+            const taskList = document.getElementById('taskList');
+            const totalHours = document.getElementById('totalHours');
+            const taskError = document.getElementById('taskError');
+            const copyBtn = document.getElementById('copyTasksBtn');
+            const copyStatus = document.getElementById('copyTasksStatus');
+            const tasksKey = `dashboardTasks-${new Date().toISOString().slice(0, 10)}`;
+            let tasks = [];
+
+            const persistTasks = () => {
+              localStorage.setItem(tasksKey, JSON.stringify(tasks));
+            };
+
+            const removeTask = (index) => {
+              tasks.splice(index, 1);
+              persistTasks();
+              renderTasks();
+            };
+
+            const renderTasks = () => {
+              taskList.innerHTML = '';
+              if (tasks.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'task-empty';
+                empty.textContent = 'No tasks yet. Add your first one above.';
+                taskList.appendChild(empty);
+              } else {
+                tasks.forEach((task, index) => {
+                  const row = document.createElement('div');
+                  row.className = 'task-row';
+                  const nameSpan = document.createElement('span');
+                  nameSpan.textContent = task.name;
+                  const hoursSpan = document.createElement('span');
+                  hoursSpan.textContent = task.hours.toFixed(2);
+                  const removeBtn = document.createElement('button');
+                  removeBtn.className = 'task-remove';
+                  removeBtn.type = 'button';
+                  removeBtn.textContent = 'Remove';
+                  removeBtn.addEventListener('click', () => removeTask(index));
+                  row.appendChild(nameSpan);
+                  row.appendChild(hoursSpan);
+                  row.appendChild(removeBtn);
+                  taskList.appendChild(row);
+                });
+              }
+
+              const total = tasks.reduce((sum, t) => sum + t.hours, 0);
+              totalHours.textContent = total.toFixed(2);
+            };
+
+            const addTask = () => {
+              const name = nameInput.value.trim() || 'Untitled task';
+              const hoursValue = parseFloat(hoursInput.value);
+
+              if (Number.isNaN(hoursValue) || hoursValue < 0) {
+                taskError.textContent = 'Please enter hours (0 or more).';
+                hoursInput.focus();
+                return;
+              }
+
+              taskError.textContent = '';
+              tasks.push({ name, hours: hoursValue });
+              persistTasks();
+              nameInput.value = '';
+              hoursInput.value = '';
+              renderTasks();
+              nameInput.focus();
+            };
+
+            addBtn.addEventListener('click', addTask);
+            nameInput.addEventListener('keydown', (e) => {
+              if (e.key === 'Enter') addTask();
+            });
+            hoursInput.addEventListener('keydown', (e) => {
+              if (e.key === 'Enter') addTask();
+            });
+
+            const copyTasksToClipboard = async () => {
+              if (!tasks.length) {
+                copyStatus.textContent = 'No tasks to copy';
+                setTimeout(() => { copyStatus.textContent = ''; }, 1200);
+                return;
+              }
+              const lines = tasks.map(t => t.name);
+              const text = lines.join('\n');
+              try {
+                await navigator.clipboard.writeText(text);
+                copyStatus.textContent = 'Copied!';
+              } catch (err) {
+                copyStatus.textContent = 'Copy failed';
+              }
+              setTimeout(() => { copyStatus.textContent = ''; }, 1200);
+            };
+
+            copyBtn.addEventListener('click', copyTasksToClipboard);
+
+            try {
+              const saved = JSON.parse(localStorage.getItem(tasksKey) || '[]');
+              if (Array.isArray(saved)) {
+                tasks = saved
+                  .filter(t => typeof t === 'object' && t !== null)
+                  .map(t => ({
+                    name: typeof t.name === 'string' ? t.name : 'Untitled task',
+                    hours: Number.isFinite(t.hours) ? Number(t.hours) : 0
+                  }));
+              }
+            } catch {
+              tasks = [];
+            }
+
+            renderTasks();
+          }
+
+          if (appId === 'jokes') {
+            const jokeText = document.getElementById('jokeText');
+            const jokeBtn = document.getElementById('jokeBtn');
+            const jokeStatus = document.getElementById('jokeStatus');
+            let controller = null;
+
+            const setStatus = (msg) => {
+              jokeStatus.textContent = msg;
+              if (msg) setTimeout(() => { if (jokeStatus.textContent === msg) jokeStatus.textContent = ''; }, 1400);
+            };
+
+            const loadJoke = async () => {
+              try {
+                controller?.abort();
+                controller = new AbortController();
+                jokeBtn.disabled = true;
+                setStatus('Loading…');
+                const res = await fetch('https://icanhazdadjoke.com/', {
+                  headers: { Accept: 'application/json', 'User-Agent': 'Dashboard (demo)' },
+                  signal: controller.signal
+                });
+                const data = await res.json();
+                jokeText.textContent = data.joke || 'No joke found.';
+                setStatus('Got one!');
+              } catch (err) {
+                if (err.name === 'AbortError') return;
+                jokeText.textContent = 'Could not load a joke right now.';
+                setStatus('Error');
+              } finally {
+                jokeBtn.disabled = false;
+              }
+            };
+
+            jokeBtn.addEventListener('click', loadJoke);
+            loadJoke();
+
+            teardownFn = () => controller?.abort();
+          }
+
+          if (appId === 'calendar') {
+            const monthLabel = document.getElementById('calMonthLabel');
+            const grid = document.getElementById('calGrid');
+            const selectedLabel = document.getElementById('calSelectedDate');
+            const eventsList = document.getElementById('calEventsList');
+            const eventTitle = document.getElementById('calEventTitle');
+            const eventTime = document.getElementById('calEventTime');
+            const eventDesc = document.getElementById('calEventDesc');
+            const addEventBtn = document.getElementById('calAddEvent');
+            const addTaskBtn = document.getElementById('calAddTask');
+            const taskNameInput = document.getElementById('calTaskName');
+            const taskHoursInput = document.getElementById('calTaskHours');
+            const tasksList = document.getElementById('calTasksList');
+            const tasksTotal = document.getElementById('calTasksTotal');
+            const todayBtn = document.getElementById('calToday');
+            const prevBtn = document.getElementById('calPrev');
+            const nextBtn = document.getElementById('calNext');
+
+            const storageKeyEvents = 'dashboardEvents';
+            let events = [];
+            let currentMonth = new Date();
+            let selectedDate = new Date();
+
+            const fmtDate = (d) => d.toISOString().slice(0, 10);
+            const isSameDay = (a, b) => fmtDate(a) === fmtDate(b);
+
+            try {
+              const saved = JSON.parse(localStorage.getItem(storageKeyEvents) || '[]');
+              if (Array.isArray(saved)) events = saved;
+            } catch {
+              events = [];
+            }
+
+            const persistEvents = () => localStorage.setItem(storageKeyEvents, JSON.stringify(events));
+
+            const setSelectedDate = (date) => {
+              selectedDate = date;
+              selectedLabel.textContent = selectedDate.toDateString();
+              renderGrid();
+              renderEvents();
+              renderTasks();
+            };
+
+            const changeMonth = (delta) => {
+              currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + delta, 1);
+              renderGrid();
+            };
+
+            const renderGrid = () => {
+              const year = currentMonth.getFullYear();
+              const month = currentMonth.getMonth();
+              monthLabel.textContent = currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' });
+
+              grid.innerHTML = '';
+              const firstDay = new Date(year, month, 1);
+              const startWeekday = firstDay.getDay();
+              const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+              for (let i = 0; i < startWeekday; i++) {
+                const filler = document.createElement('div');
+                filler.className = 'cal-cell cal-cell--empty';
+                grid.appendChild(filler);
+              }
+
+              for (let day = 1; day <= daysInMonth; day++) {
+                const dateObj = new Date(year, month, day);
+                const cell = document.createElement('button');
+                cell.className = 'cal-cell';
+                if (isSameDay(dateObj, new Date())) cell.classList.add('today');
+                if (isSameDay(dateObj, selectedDate)) cell.classList.add('selected');
+                cell.textContent = day.toString();
+
+                const dateStr = fmtDate(dateObj);
+                const hasEvent = events.some(e => e.date === dateStr);
+                if (hasEvent) {
+                  const dot = document.createElement('span');
+                  dot.className = 'cal-dot';
+                  cell.appendChild(dot);
+                }
+
+                cell.addEventListener('click', () => setSelectedDate(dateObj));
+                grid.appendChild(cell);
+              }
+            };
+
+            const renderEvents = () => {
+              eventsList.innerHTML = '';
+              const dateStr = fmtDate(selectedDate);
+              const forDay = events.filter(e => e.date === dateStr);
+              if (forDay.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'calendar-empty';
+                empty.textContent = 'No events yet';
+                eventsList.appendChild(empty);
+                return;
+              }
+              forDay
+                .sort((a, b) => (a.time || '').localeCompare(b.time || ''))
+                .forEach(ev => {
+                  const row = document.createElement('div');
+                  row.className = 'calendar-item';
+                  const title = document.createElement('div');
+                  title.className = 'calendar-item__title';
+                  title.textContent = ev.title || 'Untitled event';
+                  const meta = document.createElement('div');
+                  meta.className = 'calendar-item__meta';
+                  meta.textContent = ev.time ? ev.time : 'All day';
+                  if (ev.desc) meta.textContent += ` • ${ev.desc}`;
+                  const del = document.createElement('button');
+                  del.className = 'calendar-delete';
+                  del.textContent = 'Delete';
+                  del.addEventListener('click', () => {
+                    events = events.filter(e => e.id !== ev.id);
+                    persistEvents();
+                    renderEvents();
+                    renderGrid();
+                  });
+                  row.appendChild(title);
+                  row.appendChild(meta);
+                  row.appendChild(del);
+                  eventsList.appendChild(row);
+                });
+            };
+
+            const renderTasks = () => {
+              tasksList.innerHTML = '';
+              const dateStr = fmtDate(selectedDate);
+              const tasksKey = `dashboardTasks-${dateStr}`;
+              let tasks = [];
+              try {
+                const saved = JSON.parse(localStorage.getItem(tasksKey) || '[]');
+                if (Array.isArray(saved)) tasks = saved;
+              } catch {
+                tasks = [];
+              }
+
+              if (tasks.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'calendar-empty';
+                empty.textContent = 'No tasks linked to this day';
+                tasksList.appendChild(empty);
+                tasksTotal.textContent = '';
+                return;
+              }
+
+              let total = 0;
+              tasks.forEach(task => {
+                const row = document.createElement('div');
+                row.className = 'calendar-item calendar-item--task';
+                const name = document.createElement('div');
+                name.className = 'calendar-item__title';
+                name.textContent = task.name || 'Untitled task';
+                const hours = document.createElement('div');
+                hours.className = 'calendar-item__meta';
+                const h = Number.isFinite(task.hours) ? task.hours : Number(task.hours) || 0;
+                hours.textContent = `${h.toFixed(2)} h`;
+                total += h;
+                row.appendChild(name);
+                row.appendChild(hours);
+                tasksList.appendChild(row);
+              });
+              tasksTotal.textContent = `Total planned: ${total.toFixed(2)} h`;
+            };
+
+            addEventBtn.addEventListener('click', () => {
+              const title = eventTitle.value.trim() || 'Untitled event';
+              const time = eventTime.value;
+              const desc = eventDesc.value.trim();
+              const dateStr = fmtDate(selectedDate);
+              const newEvent = {
+                id: crypto.randomUUID?.() || Date.now().toString(),
+                title,
+                time,
+                desc,
+                date: dateStr
+              };
+              events.push(newEvent);
+              persistEvents();
+              eventTitle.value = '';
+              eventTime.value = '';
+              eventDesc.value = '';
+              renderEvents();
+              renderGrid();
+            });
+
+            addTaskBtn.addEventListener('click', () => {
+              const name = taskNameInput.value.trim() || 'Untitled task';
+              const hours = parseFloat(taskHoursInput.value);
+              if (Number.isNaN(hours) || hours < 0) return;
+              const dateStr = fmtDate(selectedDate);
+              const tasksKey = `dashboardTasks-${dateStr}`;
+              let tasks = [];
+              try {
+                const saved = JSON.parse(localStorage.getItem(tasksKey) || '[]');
+                if (Array.isArray(saved)) tasks = saved;
+              } catch {
+                tasks = [];
+              }
+              tasks.push({ name, hours });
+              localStorage.setItem(tasksKey, JSON.stringify(tasks));
+              taskNameInput.value = '';
+              taskHoursInput.value = '';
+              renderTasks();
+            });
+
+            todayBtn.addEventListener('click', () => {
+              currentMonth = new Date();
+              setSelectedDate(new Date());
+            });
+
+            prevBtn.addEventListener('click', () => changeMonth(-1));
+            nextBtn.addEventListener('click', () => changeMonth(1));
+
+            setSelectedDate(new Date());
+          }
+
+          activeTeardown = teardownFn;
+        } else {
+          appContent.innerHTML = `<p style="text-align:center;opacity:0.6;">App not available yet</p>`;
         }
-      } else {
-        appContent.innerHTML = `<p style="text-align:center;opacity:0.6;">App not available yet</p>`;
-      }
+      });
     });
-  });
-</script>
-
-
-
+  </script>
 </body>
 </html>

@@ -1,121 +1,26 @@
 (function setRandomBackground() {
+  // Mixed set of static landscape images (Unsplash + Pexels).
   const backgrounds = [
+    'https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1800&q=80',
+    'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1800&q=80',
+    'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=1800&q=80',
+    'https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=1800&q=80',
+    'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1800&q=80',
+    'https://images.unsplash.com/photo-1439853949127-fa647821eba0?auto=format&fit=crop&w=1800&q=80',
     'https://images.pexels.com/photos/417173/pexels-photo-417173.jpeg',
+    'https://images.pexels.com/photos/30489052/pexels-photo-30489052.jpeg',
+    'https://images.pexels.com/photos/30644958/pexels-photo-30644958.jpeg',
+    'https://images.pexels.com/photos/16528447/pexels-photo-16528447.jpeg',
+    'https://images.pexels.com/photos/1287124/pexels-photo-1287124.jpeg',
+    'https://images.pexels.com/photos/914682/pexels-photo-914682.jpeg',
+    'https://images.pexels.com/photos/3637060/pexels-photo-3637060.jpeg',
+    'https://images.pexels.com/photos/5769308/pexels-photo-5769308.jpeg',
     'https://images.pexels.com/photos/552785/pexels-photo-552785.jpeg',
     'https://images.pexels.com/photos/3408744/pexels-photo-3408744.jpeg',
     'https://images.pexels.com/photos/547114/pexels-photo-547114.jpeg',
     'https://images.pexels.com/photos/460621/pexels-photo-460621.jpeg'
   ];
 
-  const randomImage = backgrounds[Math.floor(Math.random() * backgrounds.length)];
-  document.body.style.backgroundImage = `url('${randomImage}')`;
+  const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+  document.body.style.backgroundImage = `url('${pick(backgrounds)}')`;
 })();
-
-
-
-const imageInput = document.getElementById('imageInput');
-const dropzone = document.getElementById('dropzone');
-const fileList = document.getElementById('fileList');
-const compressBtn = document.getElementById('compressBtn');
-const status = document.getElementById('status');
-const progressContainer = document.getElementById('progressContainer');
-const progressBar = document.getElementById('progressBar');
-
-let selectedFiles = [];
-
-// Handle file selection
-dropzone.addEventListener('click', () => imageInput.click());
-imageInput.addEventListener('change', (e) => handleFiles(e.target.files));
-
-// Drag and drop functionality
-dropzone.addEventListener('dragover', (e) => {
-  e.preventDefault();
-  dropzone.classList.add('dragover');
-});
-
-dropzone.addEventListener('dragleave', () => {
-  dropzone.classList.remove('dragover');
-});
-
-dropzone.addEventListener('drop', (e) => {
-  e.preventDefault();
-  dropzone.classList.remove('dragover');
-  handleFiles(e.dataTransfer.files);
-});
-
-function handleFiles(files) {
-  selectedFiles = [...files].filter(file => file.type.startsWith('image/'));
-  displayFileList();
-  compressBtn.disabled = selectedFiles.length === 0;
-}
-
-function displayFileList() {
-  fileList.innerHTML = '';
-  if (selectedFiles.length === 0) return;
-
-  selectedFiles.forEach(file => {
-    const sizeKB = (file.size / 1024).toFixed(1);
-    const item = document.createElement('div');
-    item.textContent = `📄 ${file.name} – ${sizeKB} KB`;
-    fileList.appendChild(item);
-  });
-}
-
-compressBtn.addEventListener('click', async () => {
-  if (selectedFiles.length === 0) return;
-
-  compressBtn.disabled = true;
-  status.textContent = '';
-  progressContainer.style.display = 'block';
-  progressBar.style.width = '0%';
-
-  const zip = new JSZip();
-
-  for (let i = 0; i < selectedFiles.length; i++) {
-    const file = selectedFiles[i];
-    const isPNG = file.type === 'image/png';
-    const targetSizeKB = isPNG ? 1000 : 700;
-    const originalSizeKB = file.size / 1024;
-
-    if (originalSizeKB <= targetSizeKB) {
-      status.innerHTML += `⚠️ ${file.name} already under target size (${originalSizeKB.toFixed(1)} KB), skipping compression<br>`;
-      zip.file(`compressed_${file.name}`, file);
-      updateProgress(i + 1, selectedFiles.length);
-      continue;
-    }
-
-    const options = {
-      maxSizeMB: targetSizeKB / 1024,
-      maxWidthOrHeight: 2000,
-      useWebWorker: true,
-      fileType: file.type
-    };
-
-    try {
-      const compressedFile = await imageCompression(file, options);
-      const blob = new Blob([compressedFile], { type: compressedFile.type });
-      const compressedSizeKB = blob.size / 1024;
-      zip.file(`compressed_${file.name}`, blob);
-      status.innerHTML += `✔️ ${file.name} compressed from ${originalSizeKB.toFixed(1)} KB to ${compressedSizeKB.toFixed(1)} KB<br>`;
-    } catch (err) {
-      status.innerHTML += `❌ Failed to compress ${file.name}: ${err.message}<br>`;
-    }
-
-    updateProgress(i + 1, selectedFiles.length);
-  }
-
-  const content = await zip.generateAsync({ type: 'blob' });
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(content);
-  link.download = 'compressed_images.zip';
-  link.click();
-
-  status.innerHTML += '<br>✅ All done! ZIP download started.';
-  compressBtn.disabled = false;
-  progressContainer.style.display = 'none';
-});
-
-function updateProgress(current, total) {
-  const percent = Math.round((current / total) * 100);
-  progressBar.style.width = `${percent}%`;
-}

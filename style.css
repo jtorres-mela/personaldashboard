@@ -22,12 +22,22 @@ body::before {
   z-index: -1;
 }
 
+.background-video {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: -2;
+  pointer-events: none;
+}
+
 .dashboard-container {
   width: 90%;
   max-width: 800px;
   padding: 2rem;
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(8px);
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(8px);
   border-radius: 12px;
   box-shadow: 0 0 10px rgba(0,0,0,0.1);
@@ -66,37 +76,6 @@ body::before {
   background: rgba(255, 255, 255, 0.8);
 }
 
-.tool-panel summary {
-  font-size: 1.25rem;
-  font-weight: 500;
-  cursor: pointer;
-  padding: 0.5rem 0;
-}
-
-.resize-tool {
-  padding: 1rem 0;
-}
-
-.dropzone {
-  border: 2px dashed #aaa;
-  border-radius: 8px;
-  padding: 2rem;
-  text-align: center;
-  cursor: pointer;
-  background: #fafafa;
-  transition: border-color 0.3s;
-}
-
-.dropzone.dragover {
-  border-color: #0077cc;
-  background: #e9f5ff;
-}
-
-.file-list {
-  margin-top: 1rem;
-  font-size: 0.95rem;
-}
-
 button {
   margin-top: 1rem;
   padding: 0.75rem 1.5rem;
@@ -118,22 +97,6 @@ button:hover:enabled {
   background: #005fa3;
 }
 
-.progress-container {
-  margin-top: 1rem;
-  width: 100%;
-  background: #ddd;
-  border-radius: 8px;
-  height: 16px;
-  overflow: hidden;
-}
-
-.progress-bar {
-  height: 100%;
-  width: 0%;
-  background: #0077cc;
-  transition: width 0.3s;
-}
-
 .status {
   margin-top: 1rem;
   font-size: 0.9rem;
@@ -150,93 +113,669 @@ button:hover:enabled {
   to { opacity: 1; transform: scale(1); }
 }
 
-.resize-tool h2 {
-  margin-top: 0;
-}
-
-.weather-widget h2 {
-  margin-top: 0;
-}
-
-.weather-widget {
-  text-align: center;
-}
-
 .calculator {
-  max-width: 300px;
+  max-width: 780px;
   margin: auto;
-  text-align: center;
+  background: rgba(255, 255, 255, 0.78);
+  border-radius: 14px;
+  padding: 1.25rem;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.12);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(6px);
+}
+
+.calc-top {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.calc-status {
+  font-size: 0.85rem;
+  opacity: 0.7;
 }
 
 .calc-display {
-  background: #eee;
-  padding: 1rem;
-  font-size: 1.5rem;
-  border-radius: 6px;
-  margin-bottom: 1rem;
-  min-height: 2.5rem;
+  flex: 1;
+  background: linear-gradient(135deg, #f3f6fb, #e8f0ff);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 10px;
+  padding: 0.6rem 0.8rem;
+  text-align: right;
+  box-shadow: inset 0 1px 4px rgba(0,0,0,0.08);
+  min-width: 220px;
+}
+
+.calc-expression {
+  font-size: 1.2rem;
+  opacity: 0.65;
+  margin: 0;
+}
+
+.calc-result {
+  font-size: 2.2rem;
+  margin: 0;
+  font-weight: 600;
+}
+
+.calc-body {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1rem;
+  margin-top: 1rem;
+  align-items: start;
 }
 
 .calc-buttons {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
+  gap: 0.75rem;
 }
 
 .calc-buttons button {
-  padding: 1rem;
-  font-size: 1.2rem;
-  border: none;
-  border-radius: 6px;
-  background: #f0f0f0;
-  color: black;
+  padding: 0.9rem 0.75rem;
+  font-size: 1.1rem;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  background: rgba(255, 255, 255, 0.9);
+  color: #0f1a2a;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: transform 0.05s ease, box-shadow 0.15s ease, background 0.15s ease;
+  margin-top: 0;
 }
 
 .calc-buttons button:hover {
-  background: #ddd;
-  color: black;
+  background: #eef4ff;
+  box-shadow: 0 6px 14px rgba(0, 119, 204, 0.18);
 }
 
-.calc-buttons .clear {
-  grid-column: span 4;
-  background: #ffb3b3;
+.calc-buttons button:active {
+  transform: translateY(1px);
 }
 
-.calc-buttons .clear:hover {
-  background: #ff8c8c;
+.calc-buttons .operator {
+  background: rgba(0, 119, 204, 0.12);
+  color: #0a3766;
+  border-color: rgba(0, 119, 204, 0.2);
+}
+
+.calc-buttons .accent {
+  background: linear-gradient(135deg, #0099ff, #0066cc);
+  color: #fff;
+  border: none;
+  box-shadow: 0 8px 18px rgba(0, 102, 204, 0.35);
+}
+
+.calc-buttons .muted {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.calc-buttons .span-two {
+  grid-column: span 2;
+}
+
+.calc-buttons .span-two-row {
+  grid-row: span 2;
+}
+
+.calc-history {
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 10px;
+  padding: 0.75rem;
+  box-shadow: inset 0 1px 4px rgba(0,0,0,0.08);
+  min-height: 80%;
+}
+
+.calc-history__title {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.calc-history__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.calc-history__item {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: 8px;
+  background: rgba(0, 119, 204, 0.07);
+  border: 1px solid rgba(0, 119, 204, 0.15);
+  font-size: 0.95rem;
+}
+
+.calc-history__item strong {
+  font-weight: 700;
+}
+
+.calc-history__empty {
+  text-align: center;
+  opacity: 0.6;
 }
 
 .notes-app {
   display: flex;
   flex-direction: column;
+}
+
+.tasks-app {
+  max-width: 720px;
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.tasks-app h2 {
+  margin: 0;
+  letter-spacing: 0.5px;
+}
+
+.tasks-subtitle {
+  margin: 0;
+  opacity: 0.75;
+}
+
+.task-entry {
+  display: grid;
+  grid-template-columns: 1.1fr 0.65fr auto;
+  gap: 0.75rem;
   align-items: center;
 }
 
-.notes-app textarea {
+.task-entry input {
+  width: 90%;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 1rem;
+}
+
+.task-entry button {
+  margin-top: 0;
+}
+
+.task-table {
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+}
+
+.task-table__header,
+.task-row,
+.task-table__footer {
+  display: grid;
+  grid-template-columns: 1fr 110px 90px;
+  padding: 0.75rem 1rem;
+  align-items: center;
+}
+
+.task-table__header {
+  background: rgba(0, 0, 0, 0.04);
+  font-weight: 600;
+}
+
+.task-table__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+}
+
+.task-row {
+  background: rgba(0, 119, 204, 0.08);
+  border: 1px solid rgba(0, 119, 204, 0.15);
+  border-radius: 8px;
+  gap: 0.5rem;
+}
+
+.task-table__footer {
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  font-weight: 700;
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.task-table__footer strong {
+  justify-self: end;
+}
+
+.task-remove {
+  justify-self: end;
+  background: transparent;
+  color: #c0392b;
+  border: 1px solid rgba(192, 57, 43, 0.3);
+  padding: 0.45rem 0.75rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 0;
+}
+
+.task-remove:hover {
+  background: rgba(192, 57, 43, 0.1);
+  border-color: rgba(192, 57, 43, 0.5);
+}
+
+.task-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.task-actions .status {
+  margin-top: 0;
+}
+
+.task-empty {
+  text-align: center;
+  padding: 0.5rem 0;
+  opacity: 0.7;
+}
+
+.tasks-error {
+  color: #c0392b;
+  margin: 0;
+}
+
+.notes-layout {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 1.25rem;
   width: 100%;
-  max-width: 600px;
-  height: 200px;
-  padding: 1rem;
+}
+
+.notes-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.notes-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding-right: 0.5rem;
+}
+
+.note-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.note-tab {
+  width: 100%;
+  text-align: left;
+  padding: 0.55rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.07);
+  background: rgba(255, 255, 255, 0.8);
+  color: #0f1a2a;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 0;
+}
+
+.note-tab:hover {
+  background: rgba(0, 119, 204, 0.08);
+}
+
+.note-tab.active {
+  background: rgba(0, 119, 204, 0.14);
+  border-color: rgba(0, 119, 204, 0.3);
+  color: #0a3766;
+  font-weight: 600;
+}
+
+.notes-main input,
+.notes-main textarea {
+  width: 100%;
+  padding: 0.75rem 0.85rem;
   font-size: 1rem;
   border-radius: 8px;
   border: 1px solid #ccc;
   resize: vertical;
+  background: rgba(255, 255, 255, 0.9);
 }
 
-.notes-app button {
-  margin-top: 1rem;
-  padding: 0.5rem 1.25rem;
-  font-size: 1rem;
-  background: #0077cc;
-  color: white;
+.notes-main textarea {
+  min-height: 220px;
+}
+
+.note-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.notes-primary {
+  margin-top: 0;
+}
+
+.notes-danger {
+  margin-top: 0;
+  background: #f7d7d7;
+  color: #a93226;
+  border: 1px solid rgba(169, 50, 38, 0.2);
+}
+
+.notes-danger:hover {
+  background: #f2c1c1;
+}
+
+.calendar-app {
+  background: rgba(255, 255, 255, 0.78);
+  border-radius: 14px;
+  padding: 1.25rem;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.12);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(6px);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.calendar-subtitle {
+  opacity: 0.75;
+  margin-top: 0.1rem;
+}
+
+.calendar-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.calendar-nav button {
+  margin-top: 0;
+  padding: 0.45rem 0.75rem;
+}
+
+.calendar-body {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 1rem;
+}
+
+.calendar-month {
+  background: rgba(255,255,255,0.9);
+  border-radius: 10px;
+  border: 1px solid rgba(0,0,0,0.05);
+  padding: 0.75rem;
+  box-shadow: inset 0 1px 4px rgba(0,0,0,0.08);
+}
+
+.calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  font-size: 0.85rem;
+  opacity: 0.7;
+  margin-bottom: 0.35rem;
+  text-align: center;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.4rem;
+}
+
+.cal-cell {
+  position: relative;
+  padding: 0.75rem 0.4rem;
+  border-radius: 10px;
+  border: 1px solid rgba(0,0,0,0.05);
+  background: rgba(255,255,255,0.9);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-top: 0;
+  color: #0f1a2a;
+  font-weight: 600;
+}
+
+.cal-cell:hover {
+  background: #eef4ff;
+  box-shadow: 0 6px 14px rgba(0, 119, 204, 0.15);
+}
+
+.cal-cell.selected {
+  border-color: rgba(0,119,204,0.35);
+  background: rgba(0,119,204,0.12);
+  color: #0a3766;
+}
+
+.cal-cell.today {
+  box-shadow: inset 0 0 0 2px rgba(0,119,204,0.35);
+}
+
+.cal-cell--empty {
+  background: transparent;
   border: none;
+  cursor: default;
+}
+
+.cal-dot {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #0a3766;
+  bottom: 6px;
+  right: 6px;
+}
+
+.calendar-day {
+  background: rgba(255,255,255,0.9);
+  border-radius: 10px;
+  border: 1px solid rgba(0,0,0,0.05);
+  padding: 0.85rem;
+  box-shadow: inset 0 1px 4px rgba(0,0,0,0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.calendar-day__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.calendar-day__label {
+  opacity: 0.7;
+}
+
+.calendar-day__title {
+  font-weight: 700;
+}
+
+.calendar-today-btn {
+  margin-top: 0;
+}
+
+.calendar-section h4 {
+  margin: 0 0 0.4rem 0;
+}
+
+.calendar-form {
+  display: grid;
+  grid-template-columns: 1fr 120px 1.1fr auto;
+  gap: 0.35rem;
+  align-items: center;
+  justify-items: stretch;
+}
+
+.calendar-form input::placeholder {
+  color: rgba(15, 26, 42, 0.6);
+}
+
+.calendar-form input {
+  width: 100%;
+  padding: 0.65rem 0.65rem;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  margin-top: 0;
+  color: #0f1a2a;
+  height: 44px;
+  box-sizing: border-box;
+  line-height: 1.2;
+}
+
+.calendar-form input[type="time"] {
+  font-size: 0.95rem;
+}
+
+.calendar-form button {
+  margin-top: 0;
+  padding: 0.65rem 0.9rem;
+  height: 44px;
+}
+
+
+.calendar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.calendar-item {
+  background: rgba(0,119,204,0.07);
+  border: 1px solid rgba(0,119,204,0.15);
+  border-radius: 10px;
+  padding: 0.6rem 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.calendar-item--task {
+  background: rgba(0,0,0,0.05);
+  border-color: rgba(0,0,0,0.08);
+  flex-direction: row;
+  justify-content: space-between;
+}
+
+.calendar-item__title {
+  font-weight: 600;
+}
+
+.calendar-item__meta {
+  opacity: 0.7;
+}
+
+.calendar-empty {
+  text-align: center;
+  opacity: 0.6;
+}
+
+.calendar-delete {
+  align-self: flex-start;
+  margin-top: 0.1rem;
+  padding: 0.4rem 0.65rem;
+  background: #f7d7d7;
+  color: #a93226;
+  border: 1px solid rgba(169, 50, 38, 0.2);
   border-radius: 6px;
   cursor: pointer;
-  transition: background 0.2s;
 }
 
-.notes-app button:hover {
-  background: #005fa3;
+.calendar-delete:hover {
+  background: #f2c1c1;
+}
+
+.calendar-total {
+  margin-top: 0.25rem;
+  font-weight: 600;
+}
+
+.joke-app {
+  max-width: 720px;
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.joke-subtitle {
+  margin: 0;
+  opacity: 0.75;
+}
+
+.joke-card {
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+}
+
+.joke-text {
+  font-size: 1.05rem;
+  margin-bottom: 0.75rem;
+}
+
+.joke-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.joke-actions .status {
+  margin-top: 0;
+}
+
+@media (max-width: 720px) {
+  .notes-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .task-entry {
+    grid-template-columns: 1fr;
+  }
+
+  .task-table__header,
+  .task-row,
+  .task-table__footer {
+    grid-template-columns: 1fr 90px 70px;
+  }
+}
+
+@media (max-width: 680px) {
+  .calc-body {
+    grid-template-columns: 1fr;
+  }
+
+  .calc-top {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .calendar-body {
+    grid-template-columns: 1fr;
+  }
+
+  .calendar-form {
+    grid-template-columns: 1fr;
+  }
 }
