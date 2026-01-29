@@ -81,6 +81,10 @@
         <div class="notes-main">
           <input id="noteTitle" type="text" placeholder="Note title" aria-label="Note title">
           <textarea id="notesArea" placeholder="Type your notes here..." aria-label="Note body"></textarea>
+          <div class="note-preview">
+            <div class="note-preview__label">Preview</div>
+            <div id="notePreview" class="note-preview__body"></div>
+          </div>
           <div class="note-actions">
             <button id="deleteNoteBtn" class="notes-danger">Delete Note</button>
           </div>
@@ -92,7 +96,11 @@
   <template id="app-tasks">
     <div class="tasks-app">
       <h2>✅ Daily Tasks</h2>
-      <p class="tasks-subtitle">Track what you worked on.</p>
+      <div class="task-date">
+        <p class="tasks-subtitle" style="margin:0;">Track what you worked on.</p>
+        <label for="taskDate" class="task-date__label">Date:</label>
+        <input id="taskDate" type="date" aria-label="Task date">
+      </div>
       <div class="task-entry">
         <input id="taskName" type="text" placeholder="Task name" aria-label="Task name">
         <input id="taskHours" type="number" min="0" step="0.25" placeholder="Hours" aria-label="Hours spent">
@@ -148,27 +156,7 @@
           </div>
 
           <div class="calendar-section">
-            <h4>Add event</h4>
-            <div class="calendar-form">
-              <input id="calEventTitle" type="text" placeholder="Title">
-              <input id="calEventTime" type="time">
-              <input id="calEventDesc" type="text" placeholder="Details (optional)">
-              <button id="calAddEvent">Add</button>
-            </div>
-          </div>
-
-          <div class="calendar-section">
-            <h4>Events</h4>
-            <div id="calEventsList" class="calendar-list"></div>
-          </div>
-
-          <div class="calendar-section">
             <h4>Tasks for this day</h4>
-            <div class="calendar-form">
-              <input id="calTaskName" type="text" placeholder="Task name">
-              <input id="calTaskHours" type="number" min="0" step="0.25" placeholder="Hours">
-              <button id="calAddTask">Add task</button>
-            </div>
             <div id="calTasksList" class="calendar-list"></div>
             <div id="calTasksTotal" class="calendar-total"></div>
           </div>
@@ -211,6 +199,17 @@
     setInterval(updateClock, 1000);
     updateClock();
 
+    // API helper
+    const API_BASE = 'http://localhost:3000';
+    const api = async (path, options = {}) => {
+      const isForm = options.body instanceof FormData;
+      const headers = options.headers || {};
+      if (!isForm) headers['Content-Type'] = 'application/json';
+      const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+      if (!res.ok) throw new Error('Request failed');
+      return res.json();
+    };
+
     // Dynamic App Launcher
     const appContent = document.getElementById('appContent');
     const icons = document.querySelectorAll('.app-icon');
@@ -248,7 +247,6 @@
             const newNoteBtn = document.getElementById('newNoteBtn');
             const deleteNoteBtn = document.getElementById('deleteNoteBtn');
             const status = document.getElementById('notesSavedStatus');
-            const storageKey = 'dashboardNotesList';
 
             let notes = [];
             let activeId = null;
@@ -262,8 +260,28 @@
               }
             };
 
-            const persist = () => {
-              localStorage.setItem(storageKey, JSON.stringify(notes));
+            const escapeHtml = (str) => str
+              .replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;');
+
+            const renderPreview = () => {
+              const preview = document.getElementById('notePreview');
+              if (!preview) return;
+              const raw = notesArea.value || '';
+              const safe = escapeHtml(raw)
+                .replace(/!\\[img\\]\\(asset:([^\\)]+)\\)/g, (_m, id) => `<img src=\"${API_BASE}/api/assets/${id}\" alt=\"image\" loading=\"lazy\">`)
+                .replace(/\\n/g, '<br>');
+              preview.innerHTML = safe || '<span style=\"opacity:0.6;\">Nothing to preview yet.</span>';
+            };
+
+            const insertAtCursor = (text) => {
+              const start = notesArea.selectionStart ?? notesArea.value.length;
+              const end = notesArea.selectionEnd ?? start;
+              const val = notesArea.value;
+              notesArea.value = val.slice(0, start) + text + val.slice(end);
+              notesArea.selectionStart = notesArea.selectionEnd = start + text.length;
+              renderPreview();
             };
 
             const renderList = () => {
@@ -285,66 +303,75 @@
               noteTitle.value = note.title;
               notesArea.value = note.body;
               renderList();
+              renderPreview();
             };
 
-            const ensureNotes = () => {
-              if (!Array.isArray(notes)) notes = [];
+            const loadNotes = async () => {
+              notes = await api('/api/notes');
               if (notes.length === 0) {
-                const id = crypto.randomUUID?.() || Date.now().toString();
-                notes = [{ id, title: 'New note', body: '', updatedAt: Date.now() }];
+                const created = await api('/api/notes', { method: 'POST', body: JSON.stringify({ title: 'New note', body: '' }) });
+                notes = [created];
               }
-              if (!activeId || !notes.some(n => n.id === activeId)) {
-                activeId = notes[0].id;
-              }
+              activeId = notes[0].id;
+              renderList();
+              selectNote(activeId);
             };
 
-            const saveActive = () => {
+            const saveActive = async () => {
               const note = notes.find(n => n.id === activeId);
               if (!note) return;
               note.title = noteTitle.value.trim() || 'Untitled';
               note.body = notesArea.value;
-              note.updatedAt = Date.now();
-              persist();
-              renderList();
+              await api(`/api/notes/${note.id}`, { method: 'PUT', body: JSON.stringify({ title: note.title, body: note.body }) });
               setStatus('Saved');
+              await loadNotes();
             };
 
-            const addNote = () => {
-              const id = crypto.randomUUID?.() || Date.now().toString();
-              const newNote = { id, title: 'New note', body: '', updatedAt: Date.now() };
-              notes.unshift(newNote);
-              activeId = id;
-              persist();
-              selectNote(id);
+            const uploadAsset = async (file) => {
+              const fd = new FormData();
+              fd.append('file', file);
+              const res = await fetch(`${API_BASE}/api/notes/${activeId}/assets`, { method: 'POST', body: fd });
+              if (!res.ok) throw new Error('upload failed');
+              const data = await res.json();
+              return `![img](asset:${data.assetId})`;
+            };
+
+            notesArea.addEventListener('paste', async (e) => {
+              const file = Array.from(e.clipboardData?.files || []).find(f => f.type.startsWith('image/'));
+              if (!file) return;
+              e.preventDefault();
+              try {
+                setStatus('Uploading image…');
+                const token = await uploadAsset(file);
+                insertAtCursor(token);
+                await saveActive();
+                setStatus('Image added');
+              } catch (err) {
+                console.error(err);
+                setStatus('Image upload failed');
+              }
+            });
+
+            const addNote = async () => {
+              const created = await api('/api/notes', { method: 'POST', body: JSON.stringify({ title: 'New note', body: '' }) });
+              await loadNotes();
+              selectNote(created.id);
               setStatus('New note added');
             };
 
-            const deleteNote = () => {
+            const deleteNote = async () => {
               if (!activeId) return;
-              notes = notes.filter(n => n.id !== activeId);
-              ensureNotes();
-              persist();
-              selectNote(activeId);
+              await api(`/api/notes/${activeId}`, { method: 'DELETE' });
+              await loadNotes();
               setStatus('Note deleted');
             };
 
-            // Event bindings
             newNoteBtn.addEventListener('click', addNote);
             deleteNoteBtn.addEventListener('click', deleteNote);
-            noteTitle.addEventListener('input', saveActive);
-            notesArea.addEventListener('input', saveActive);
+            noteTitle.addEventListener('input', () => { saveActive(); });
+            notesArea.addEventListener('input', () => { renderPreview(); saveActive(); });
 
-            // Load notes
-            try {
-              const saved = JSON.parse(localStorage.getItem(storageKey) || '[]');
-              if (Array.isArray(saved)) notes = saved;
-            } catch {
-              notes = [];
-            }
-
-            ensureNotes();
-            renderList();
-            selectNote(activeId);
+            loadNotes();
           }
 
           if (appId === 'calc') {
@@ -469,51 +496,117 @@
             const taskError = document.getElementById('taskError');
             const copyBtn = document.getElementById('copyTasksBtn');
             const copyStatus = document.getElementById('copyTasksStatus');
-            const tasksKey = `dashboardTasks-${new Date().toISOString().slice(0, 10)}`;
+            const dateInput = document.getElementById('taskDate');
+            dateInput.value = new Date().toISOString().slice(0, 10);
             let tasks = [];
+            let orderIds = [];
 
-            const persistTasks = () => {
-              localStorage.setItem(tasksKey, JSON.stringify(tasks));
+            const currentDateKey = () => dateInput.value || new Date().toISOString().slice(0, 10);
+
+            const loadTasks = async () => {
+              dragId = null;
+              tasks = await api(`/api/tasks?date=${currentDateKey()}`);
+              orderIds = tasks.map(t => t.id);
+              renderTasks();
             };
 
-            const removeTask = (index) => {
-              tasks.splice(index, 1);
-              persistTasks();
-              renderTasks();
+            const removeTask = async (id) => {
+              await api(`/api/tasks/${id}`, { method: 'DELETE' });
+              await loadTasks();
             };
 
             const renderTasks = () => {
               taskList.innerHTML = '';
-              if (tasks.length === 0) {
+              const sorted = [...tasks]; // server-ordered
+              orderIds = sorted.map(t => t.id);
+              if (sorted.length === 0) {
                 const empty = document.createElement('div');
                 empty.className = 'task-empty';
                 empty.textContent = 'No tasks yet. Add your first one above.';
                 taskList.appendChild(empty);
               } else {
-                tasks.forEach((task, index) => {
+                sorted.forEach((task) => {
                   const row = document.createElement('div');
                   row.className = 'task-row';
+                  row.draggable = true;
+                  row.dataset.id = task.id;
+
+                  row.addEventListener('dragstart', (e) => {
+                    dragId = task.id;
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', task.id);
+                    row.classList.add('dragging');
+                  });
+                  row.addEventListener('dragend', () => {
+                    row.classList.remove('dragging');
+                    dragId = null;
+                  });
+
                   const nameSpan = document.createElement('span');
                   nameSpan.textContent = task.name;
-                  const hoursSpan = document.createElement('span');
-                  hoursSpan.textContent = task.hours.toFixed(2);
+                  const hoursInput = document.createElement('input');
+                  hoursInput.type = 'number';
+                  hoursInput.min = '0';
+                  hoursInput.step = '0.25';
+                  hoursInput.value = task.hours.toFixed(2);
+                  hoursInput.className = 'task-hours-input';
+                  hoursInput.addEventListener('change', async () => {
+                    const newVal = parseFloat(hoursInput.value);
+                    if (Number.isNaN(newVal) || newVal < 0) {
+                      hoursInput.value = task.hours.toFixed(2);
+                      return;
+                    }
+                    await api(`/api/tasks/${task.id}`, { method: 'PUT', body: JSON.stringify({ hours: newVal }) });
+                    await loadTasks();
+                  });
                   const removeBtn = document.createElement('button');
                   removeBtn.className = 'task-remove';
                   removeBtn.type = 'button';
                   removeBtn.textContent = 'Remove';
-                  removeBtn.addEventListener('click', () => removeTask(index));
+                  removeBtn.addEventListener('click', () => removeTask(task.id));
                   row.appendChild(nameSpan);
-                  row.appendChild(hoursSpan);
+                  row.appendChild(hoursInput);
                   row.appendChild(removeBtn);
                   taskList.appendChild(row);
                 });
               }
 
-              const total = tasks.reduce((sum, t) => sum + t.hours, 0);
+              const total = sorted.reduce((sum, t) => sum + t.hours, 0);
               totalHours.textContent = total.toFixed(2);
             };
 
-            const addTask = () => {
+            let dragId = null;
+            taskList.addEventListener('dragenter', (e) => {
+              e.preventDefault();
+            });
+            taskList.addEventListener('dragover', (e) => {
+              e.preventDefault(); // allow drop
+              if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+              const target = e.target.closest('.task-row');
+              if (!target) return;
+              taskList.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+              if (target.dataset.id !== dragId) target.classList.add('drag-over');
+            });
+
+            taskList.addEventListener('drop', async (e) => {
+              e.preventDefault();
+              const target = e.target.closest('.task-row');
+              taskList.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+              const currentDragId = dragId || e.dataTransfer.getData('text/plain');
+              if (!target || !currentDragId || target.dataset.id === currentDragId) return;
+
+              const domOrder = Array.from(taskList.querySelectorAll('.task-row')).map(r => r.dataset.id);
+              const from = domOrder.indexOf(currentDragId);
+              const to = domOrder.indexOf(target.dataset.id);
+              if (from === -1 || to === -1) return;
+              domOrder.splice(to, 0, domOrder.splice(from, 1)[0]);
+
+              await api('/api/tasks/reorder', { method: 'POST', body: JSON.stringify({ date_key: currentDateKey(), order: domOrder }) });
+              dragId = null;
+              await loadTasks();
+            });
+
+            const addTask = async () => {
               const name = nameInput.value.trim() || 'Untitled task';
               const hoursValue = parseFloat(hoursInput.value);
 
@@ -524,11 +617,10 @@
               }
 
               taskError.textContent = '';
-              tasks.push({ name, hours: hoursValue });
-              persistTasks();
+              await api('/api/tasks', { method: 'POST', body: JSON.stringify({ name, hours: hoursValue, date_key: currentDateKey() }) });
               nameInput.value = '';
               hoursInput.value = '';
-              renderTasks();
+              await loadTasks();
               nameInput.focus();
             };
 
@@ -539,6 +631,7 @@
             hoursInput.addEventListener('keydown', (e) => {
               if (e.key === 'Enter') addTask();
             });
+            dateInput.addEventListener('change', () => loadTasks());
 
             const copyTasksToClipboard = async () => {
               if (!tasks.length) {
@@ -559,21 +652,7 @@
 
             copyBtn.addEventListener('click', copyTasksToClipboard);
 
-            try {
-              const saved = JSON.parse(localStorage.getItem(tasksKey) || '[]');
-              if (Array.isArray(saved)) {
-                tasks = saved
-                  .filter(t => typeof t === 'object' && t !== null)
-                  .map(t => ({
-                    name: typeof t.name === 'string' ? t.name : 'Untitled task',
-                    hours: Number.isFinite(t.hours) ? Number(t.hours) : 0
-                  }));
-              }
-            } catch {
-              tasks = [];
-            }
-
-            renderTasks();
+            loadTasks();
           }
 
           if (appId === 'jokes') {
@@ -619,42 +698,22 @@
             const monthLabel = document.getElementById('calMonthLabel');
             const grid = document.getElementById('calGrid');
             const selectedLabel = document.getElementById('calSelectedDate');
-            const eventsList = document.getElementById('calEventsList');
-            const eventTitle = document.getElementById('calEventTitle');
-            const eventTime = document.getElementById('calEventTime');
-            const eventDesc = document.getElementById('calEventDesc');
-            const addEventBtn = document.getElementById('calAddEvent');
-            const addTaskBtn = document.getElementById('calAddTask');
-            const taskNameInput = document.getElementById('calTaskName');
-            const taskHoursInput = document.getElementById('calTaskHours');
             const tasksList = document.getElementById('calTasksList');
             const tasksTotal = document.getElementById('calTasksTotal');
             const todayBtn = document.getElementById('calToday');
             const prevBtn = document.getElementById('calPrev');
             const nextBtn = document.getElementById('calNext');
 
-            const storageKeyEvents = 'dashboardEvents';
-            let events = [];
             let currentMonth = new Date();
             let selectedDate = new Date();
 
             const fmtDate = (d) => d.toISOString().slice(0, 10);
             const isSameDay = (a, b) => fmtDate(a) === fmtDate(b);
 
-            try {
-              const saved = JSON.parse(localStorage.getItem(storageKeyEvents) || '[]');
-              if (Array.isArray(saved)) events = saved;
-            } catch {
-              events = [];
-            }
-
-            const persistEvents = () => localStorage.setItem(storageKeyEvents, JSON.stringify(events));
-
             const setSelectedDate = (date) => {
               selectedDate = date;
               selectedLabel.textContent = selectedDate.toDateString();
               renderGrid();
-              renderEvents();
               renderTasks();
             };
 
@@ -687,138 +746,47 @@
                 if (isSameDay(dateObj, selectedDate)) cell.classList.add('selected');
                 cell.textContent = day.toString();
 
-                const dateStr = fmtDate(dateObj);
-                const hasEvent = events.some(e => e.date === dateStr);
-                if (hasEvent) {
-                  const dot = document.createElement('span');
-                  dot.className = 'cal-dot';
-                  cell.appendChild(dot);
-                }
-
                 cell.addEventListener('click', () => setSelectedDate(dateObj));
                 grid.appendChild(cell);
               }
             };
 
-            const renderEvents = () => {
-              eventsList.innerHTML = '';
-              const dateStr = fmtDate(selectedDate);
-              const forDay = events.filter(e => e.date === dateStr);
-              if (forDay.length === 0) {
-                const empty = document.createElement('div');
-                empty.className = 'calendar-empty';
-                empty.textContent = 'No events yet';
-                eventsList.appendChild(empty);
-                return;
-              }
-              forDay
-                .sort((a, b) => (a.time || '').localeCompare(b.time || ''))
-                .forEach(ev => {
-                  const row = document.createElement('div');
-                  row.className = 'calendar-item';
-                  const title = document.createElement('div');
-                  title.className = 'calendar-item__title';
-                  title.textContent = ev.title || 'Untitled event';
-                  const meta = document.createElement('div');
-                  meta.className = 'calendar-item__meta';
-                  meta.textContent = ev.time ? ev.time : 'All day';
-                  if (ev.desc) meta.textContent += ` • ${ev.desc}`;
-                  const del = document.createElement('button');
-                  del.className = 'calendar-delete';
-                  del.textContent = 'Delete';
-                  del.addEventListener('click', () => {
-                    events = events.filter(e => e.id !== ev.id);
-                    persistEvents();
-                    renderEvents();
-                    renderGrid();
-                  });
-                  row.appendChild(title);
-                  row.appendChild(meta);
-                  row.appendChild(del);
-                  eventsList.appendChild(row);
-                });
-            };
-
             const renderTasks = () => {
               tasksList.innerHTML = '';
               const dateStr = fmtDate(selectedDate);
-              const tasksKey = `dashboardTasks-${dateStr}`;
               let tasks = [];
-              try {
-                const saved = JSON.parse(localStorage.getItem(tasksKey) || '[]');
-                if (Array.isArray(saved)) tasks = saved;
-              } catch {
-                tasks = [];
-              }
+              api(`/api/tasks?date=${dateStr}`).then(res => {
+                tasks = res || [];
 
-              if (tasks.length === 0) {
-                const empty = document.createElement('div');
-                empty.className = 'calendar-empty';
-                empty.textContent = 'No tasks linked to this day';
-                tasksList.appendChild(empty);
-                tasksTotal.textContent = '';
-                return;
-              }
+                tasksList.innerHTML = '';
+                if (tasks.length === 0) {
+                  const empty = document.createElement('div');
+                  empty.className = 'calendar-empty';
+                  empty.textContent = 'No tasks linked to this day';
+                  tasksList.appendChild(empty);
+                  tasksTotal.textContent = '';
+                  return;
+                }
 
-              let total = 0;
-              tasks.forEach(task => {
-                const row = document.createElement('div');
-                row.className = 'calendar-item calendar-item--task';
-                const name = document.createElement('div');
-                name.className = 'calendar-item__title';
-                name.textContent = task.name || 'Untitled task';
-                const hours = document.createElement('div');
-                hours.className = 'calendar-item__meta';
-                const h = Number.isFinite(task.hours) ? task.hours : Number(task.hours) || 0;
-                hours.textContent = `${h.toFixed(2)} h`;
-                total += h;
-                row.appendChild(name);
-                row.appendChild(hours);
-                tasksList.appendChild(row);
+                let total = 0;
+                tasks.forEach(task => {
+                  const row = document.createElement('div');
+                  row.className = 'calendar-item calendar-item--task';
+                  const name = document.createElement('div');
+                  name.className = 'calendar-item__title';
+                  name.textContent = task.name || 'Untitled task';
+                  const hours = document.createElement('div');
+                  hours.className = 'calendar-item__meta';
+                  const h = Number.isFinite(task.hours) ? task.hours : Number(task.hours) || 0;
+                  hours.textContent = `${h.toFixed(2)} h`;
+                  total += h;
+                  row.appendChild(name);
+                  row.appendChild(hours);
+                  tasksList.appendChild(row);
+                });
+                tasksTotal.textContent = `Total planned: ${total.toFixed(2)} h`;
               });
-              tasksTotal.textContent = `Total planned: ${total.toFixed(2)} h`;
             };
-
-            addEventBtn.addEventListener('click', () => {
-              const title = eventTitle.value.trim() || 'Untitled event';
-              const time = eventTime.value;
-              const desc = eventDesc.value.trim();
-              const dateStr = fmtDate(selectedDate);
-              const newEvent = {
-                id: crypto.randomUUID?.() || Date.now().toString(),
-                title,
-                time,
-                desc,
-                date: dateStr
-              };
-              events.push(newEvent);
-              persistEvents();
-              eventTitle.value = '';
-              eventTime.value = '';
-              eventDesc.value = '';
-              renderEvents();
-              renderGrid();
-            });
-
-            addTaskBtn.addEventListener('click', () => {
-              const name = taskNameInput.value.trim() || 'Untitled task';
-              const hours = parseFloat(taskHoursInput.value);
-              if (Number.isNaN(hours) || hours < 0) return;
-              const dateStr = fmtDate(selectedDate);
-              const tasksKey = `dashboardTasks-${dateStr}`;
-              let tasks = [];
-              try {
-                const saved = JSON.parse(localStorage.getItem(tasksKey) || '[]');
-                if (Array.isArray(saved)) tasks = saved;
-              } catch {
-                tasks = [];
-              }
-              tasks.push({ name, hours });
-              localStorage.setItem(tasksKey, JSON.stringify(tasks));
-              taskNameInput.value = '';
-              taskHoursInput.value = '';
-              renderTasks();
-            });
 
             todayBtn.addEventListener('click', () => {
               currentMonth = new Date();
