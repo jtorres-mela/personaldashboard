@@ -746,7 +746,7 @@ button:hover:enabled {
 }
 
 .calendar-item__title {
-  font-weight: 650;
+  font-weight: 400;
   color: #0f1a2a;
   word-break: break-word;
   line-height: 1.3;

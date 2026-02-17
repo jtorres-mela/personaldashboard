@@ -82,9 +82,42 @@ async function main() {
   await loadDb();
 
   const app = express();
-  app.use(cors());
+  app.disable('x-powered-by');
+  app.use(cors({
+    origin: (origin, cb) => {
+      if (!origin || origin === 'null') return cb(null, true);
+      try {
+        const u = new URL(origin);
+        if (u.hostname === 'localhost' || u.hostname === '127.0.0.1') return cb(null, true);
+      } catch {}
+      return cb(new Error('Not allowed by CORS'));
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE']
+  }));
+  app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+    res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+    next();
+  });
   app.use(express.json());
-  app.use(express.static(path.join(__dirname)));
+  app.use((req, res, next) => {
+    const p = req.path.toLowerCase();
+    if (
+      p === '/data.db' ||
+      p === '/server.js' ||
+      p === '/package.json' ||
+      p === '/package-lock.json' ||
+      p.startsWith('/node_modules') ||
+      p.startsWith('/.git') ||
+      p.startsWith('/.env')
+    ) {
+      return res.status(404).end();
+    }
+    next();
+  });
+  app.use(express.static(path.join(__dirname), { dotfiles: 'ignore' }));
   const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
   // Notes
@@ -116,6 +149,9 @@ async function main() {
   // Note assets
   app.post('/api/notes/:id/assets', upload.single('file'), (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'file required' });
+    if (!req.file.mimetype || !req.file.mimetype.startsWith('image/')) {
+      return res.status(400).json({ error: 'image uploads only' });
+    }
     const { id: note_id } = req.params;
     const assetId = randomUUID();
     const mime = req.file.mimetype || 'application/octet-stream';
@@ -134,6 +170,7 @@ async function main() {
     const row = get('SELECT mime, data FROM note_assets WHERE id=?', [req.params.id]);
     if (!row) return res.status(404).end();
     res.setHeader('Content-Type', row.mime || 'application/octet-stream');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
     const buf = Buffer.from(row.data);
     res.end(buf);
   });
@@ -209,8 +246,8 @@ async function main() {
   });
 
   const PORT = process.env.PORT || 3000;
-  app.listen(PORT, () => {
-    console.log(`Server (static + API) running at http://localhost:${PORT}`);
+  app.listen(PORT, '127.0.0.1', () => {
+    console.log(`Server (static + API) running at http://127.0.0.1:${PORT}`);
   });
 }
 

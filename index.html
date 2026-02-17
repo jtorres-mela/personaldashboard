@@ -186,11 +186,26 @@
     let activeApp = null;
     let activeTeardown = null;
 
+    const DASH_TZ = 'America/Denver';
+    const fmtDateKey = (date = new Date()) => new Intl.DateTimeFormat('en-CA', {
+      timeZone: DASH_TZ,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).format(date);
+    const dateFromKey = (key) => {
+      const [y, m, d] = key.split('-').map(Number);
+      return new Date(Date.UTC(y, m - 1, d, 12));
+    };
+    const todayKey = () => fmtDateKey(new Date());
+    const todayDate = () => dateFromKey(todayKey());
+
     // Clock Function
     function updateClock() {
       const clock = document.getElementById('clock');
       const now = new Date();
       clock.textContent = now.toLocaleTimeString([], {
+        timeZone: DASH_TZ,
         hour: '2-digit',
         minute: '2-digit',
         second: '2-digit'
@@ -200,7 +215,7 @@
     updateClock();
 
     // API helper
-    const API_BASE = 'http://localhost:3000';
+    const API_BASE = window.location.origin;
     const api = async (path, options = {}) => {
       const isForm = options.body instanceof FormData;
       const headers = options.headers || {};
@@ -260,19 +275,45 @@
               }
             };
 
-            const escapeHtml = (str) => str
-              .replace(/&/g, '&amp;')
-              .replace(/</g, '&lt;')
-              .replace(/>/g, '&gt;');
-
             const renderPreview = () => {
               const preview = document.getElementById('notePreview');
               if (!preview) return;
               const raw = notesArea.value || '';
-              const safe = escapeHtml(raw)
-                .replace(/!\\[img\\]\\(asset:([^\\)]+)\\)/g, (_m, id) => `<img src=\"${API_BASE}/api/assets/${id}\" alt=\"image\" loading=\"lazy\">`)
-                .replace(/\\n/g, '<br>');
-              preview.innerHTML = safe || '<span style=\"opacity:0.6;\">Nothing to preview yet.</span>';
+              preview.innerHTML = '';
+              if (!raw.trim()) {
+                const empty = document.createElement('span');
+                empty.style.opacity = '0.6';
+                empty.textContent = 'Nothing to preview yet.';
+                preview.appendChild(empty);
+                return;
+              }
+
+              const lines = raw.split('\n');
+              const tokenRe = /!\[img\]\(asset:([^)]+)\)/g;
+              lines.forEach((line, idx) => {
+                const frag = document.createDocumentFragment();
+                let cursor = 0;
+                let match;
+                while ((match = tokenRe.exec(line))) {
+                  const text = line.slice(cursor, match.index);
+                  if (text) frag.appendChild(document.createTextNode(text));
+                  const id = (match[1] || '').trim();
+                  if (/^[a-f0-9-]+$/i.test(id)) {
+                    const img = document.createElement('img');
+                    img.src = `${API_BASE}/api/assets/${encodeURIComponent(id)}`;
+                    img.alt = 'image';
+                    img.loading = 'lazy';
+                    frag.appendChild(img);
+                  } else {
+                    frag.appendChild(document.createTextNode(match[0]));
+                  }
+                  cursor = match.index + match[0].length;
+                }
+                const rest = line.slice(cursor);
+                if (rest) frag.appendChild(document.createTextNode(rest));
+                preview.appendChild(frag);
+                if (idx < lines.length - 1) preview.appendChild(document.createElement('br'));
+              });
             };
 
             const insertAtCursor = (text) => {
@@ -396,7 +437,12 @@
               history.slice(-6).reverse().forEach(item => {
                 const row = document.createElement('div');
                 row.className = 'calc-history__item';
-                row.innerHTML = `<span>${item.expr}</span><strong>${item.result}</strong>`;
+                const expr = document.createElement('span');
+                expr.textContent = item.expr;
+                const result = document.createElement('strong');
+                result.textContent = item.result;
+                row.appendChild(expr);
+                row.appendChild(result);
                 historyEl.appendChild(row);
               });
             };
@@ -497,11 +543,11 @@
             const copyBtn = document.getElementById('copyTasksBtn');
             const copyStatus = document.getElementById('copyTasksStatus');
             const dateInput = document.getElementById('taskDate');
-            dateInput.value = new Date().toISOString().slice(0, 10);
+            dateInput.value = todayKey();
             let tasks = [];
             let orderIds = [];
 
-            const currentDateKey = () => dateInput.value || new Date().toISOString().slice(0, 10);
+            const currentDateKey = () => dateInput.value || todayKey();
 
             const loadTasks = async () => {
               dragId = null;
@@ -704,33 +750,39 @@
             const prevBtn = document.getElementById('calPrev');
             const nextBtn = document.getElementById('calNext');
 
-            let currentMonth = new Date();
-            let selectedDate = new Date();
+            let currentMonth = todayDate();
+            let selectedDate = todayDate();
 
-            const fmtDate = (d) => d.toISOString().slice(0, 10);
+            const fmtDate = (d) => fmtDateKey(d);
             const isSameDay = (a, b) => fmtDate(a) === fmtDate(b);
 
             const setSelectedDate = (date) => {
               selectedDate = date;
-              selectedLabel.textContent = selectedDate.toDateString();
+              selectedLabel.textContent = selectedDate.toLocaleDateString('en-US', {
+                timeZone: DASH_TZ,
+                weekday: 'short',
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+              });
               renderGrid();
               renderTasks();
             };
 
             const changeMonth = (delta) => {
-              currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + delta, 1);
+              currentMonth = new Date(Date.UTC(currentMonth.getUTCFullYear(), currentMonth.getUTCMonth() + delta, 1, 12));
               renderGrid();
             };
 
             const renderGrid = () => {
-              const year = currentMonth.getFullYear();
-              const month = currentMonth.getMonth();
-              monthLabel.textContent = currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' });
+              const year = currentMonth.getUTCFullYear();
+              const month = currentMonth.getUTCMonth();
+              monthLabel.textContent = currentMonth.toLocaleString('default', { month: 'long', year: 'numeric', timeZone: DASH_TZ });
 
               grid.innerHTML = '';
-              const firstDay = new Date(year, month, 1);
-              const startWeekday = firstDay.getDay();
-              const daysInMonth = new Date(year, month + 1, 0).getDate();
+              const firstDay = new Date(Date.UTC(year, month, 1, 12));
+              const startWeekday = firstDay.getUTCDay();
+              const daysInMonth = new Date(Date.UTC(year, month + 1, 0, 12)).getUTCDate();
 
               for (let i = 0; i < startWeekday; i++) {
                 const filler = document.createElement('div');
@@ -739,10 +791,10 @@
               }
 
               for (let day = 1; day <= daysInMonth; day++) {
-                const dateObj = new Date(year, month, day);
+                const dateObj = new Date(Date.UTC(year, month, day, 12));
                 const cell = document.createElement('button');
                 cell.className = 'cal-cell';
-                if (isSameDay(dateObj, new Date())) cell.classList.add('today');
+                if (isSameDay(dateObj, todayDate())) cell.classList.add('today');
                 if (isSameDay(dateObj, selectedDate)) cell.classList.add('selected');
                 cell.textContent = day.toString();
 
@@ -769,6 +821,12 @@
                 }
 
                 let total = 0;
+                const formatHours = (val) => {
+                  const n = Number(val);
+                  if (!Number.isFinite(n)) return '0';
+                  if (n % 1 === 0) return n.toString();
+                  return n.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
+                };
                 tasks.forEach(task => {
                   const row = document.createElement('div');
                   row.className = 'calendar-item calendar-item--task';
@@ -783,20 +841,28 @@
                   row.appendChild(name);
                   row.appendChild(hours);
                   tasksList.appendChild(row);
+                  row.addEventListener('click', async () => {
+                    const text = `${task.name || 'Untitled task'} (${formatHours(h)})`;
+                    try {
+                      await navigator.clipboard.writeText(text);
+                    } catch (err) {
+                      console.error('Clipboard copy failed', err);
+                    }
+                  });
                 });
                 tasksTotal.textContent = `Total planned: ${total.toFixed(2)} h`;
               });
             };
 
             todayBtn.addEventListener('click', () => {
-              currentMonth = new Date();
-              setSelectedDate(new Date());
+              currentMonth = todayDate();
+              setSelectedDate(todayDate());
             });
 
             prevBtn.addEventListener('click', () => changeMonth(-1));
             nextBtn.addEventListener('click', () => changeMonth(1));
 
-            setSelectedDate(new Date());
+            setSelectedDate(todayDate());
           }
 
           activeTeardown = teardownFn;
