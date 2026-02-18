@@ -1,3 +1,3 @@
-﻿import { initDashboard } from './dashboard-app.js';
+import { initDashboard } from './dashboard-app.js';
 
 initDashboard();
