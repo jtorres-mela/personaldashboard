@@ -49,20 +49,30 @@ async function checkHealth(base) {
     const timeout = setTimeout(() => controller.abort(), 2000);
     const res = await fetch(`${base}/api/health`, { signal: controller.signal });
     clearTimeout(timeout);
-    if (!res.ok) return false;
-    const body = await res.json();
-    return body && body.ok === true;
+    if (res.ok) {
+      const body = await res.json();
+      if (body && body.ok === true) return { online: true, mode: "health" };
+    }
+    if (res.status === 404) {
+      const rootRes = await fetch(`${base}/`, { method: "GET" });
+      if (rootRes.ok) return { online: true, mode: "legacy" };
+    }
+    return { online: false, mode: "offline" };
   } catch {
-    return false;
+    return { online: false, mode: "offline" };
   }
 }
 
 async function refreshStatus() {
   setStatus("status--pending", "Checking local service...");
   const base = await getBase();
-  const ok = await checkHealth(base);
-  if (ok) {
+  const status = await checkHealth(base);
+  if (status.online && status.mode === "health") {
     setStatus("status--online", `Online at ${base}`);
+    return;
+  }
+  if (status.online && status.mode === "legacy") {
+    setStatus("status--online", `Connected at ${base}. Health check endpoint is missing.`);
     return;
   }
   setStatus("status--offline", `Cannot reach ${base}. Start the local server, then retry.`);
