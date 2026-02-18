@@ -24,6 +24,10 @@ body {
     linear-gradient(150deg, var(--bg-1), var(--bg-2));
 }
 
+body.booting .shell {
+  visibility: hidden;
+}
+
 .shell {
   min-height: 100vh;
   display: grid;

@@ -25,6 +25,10 @@ function setStatus(kind, message) {
   statusText.textContent = message;
 }
 
+function showUi() {
+  document.body.classList.remove("booting");
+}
+
 function normalizeBase(input) {
   const raw = (input || "").trim();
   if (!raw) return DEFAULT_BASE;
@@ -65,13 +69,7 @@ async function checkHealth(base) {
 
 function openDashboard(base) {
   const url = `${base}/`;
-  try {
-    if (chrome?.tabs?.update) {
-      chrome.tabs.update({ url });
-      return;
-    }
-  } catch {}
-  window.location.assign(url);
+  window.location.replace(url);
 }
 
 async function refreshStatus() {
@@ -79,16 +77,15 @@ async function refreshStatus() {
   const base = await getBase();
   const status = await checkHealth(base);
   if (status.online && status.mode === "health") {
-    setStatus("status--online", `Online at ${base}. Opening dashboard...`);
-    setTimeout(() => openDashboard(base), 120);
+    openDashboard(base);
     return;
   }
   if (status.online && status.mode === "legacy") {
-    setStatus("status--online", `Connected at ${base}. Opening dashboard...`);
-    setTimeout(() => openDashboard(base), 120);
+    openDashboard(base);
     return;
   }
   setStatus("status--offline", `Cannot reach ${base}. Start the local server, then retry.`);
+  showUi();
 }
 
 openBtn.addEventListener("click", async () => {
