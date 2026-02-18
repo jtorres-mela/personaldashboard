@@ -1,5 +1,7 @@
 const DEFAULT_BASE = "http://127.0.0.1:3000";
 const STORAGE_KEY = "dashboardApiBase";
+const AUTO_PORTS = [3000, 3001, 3002, 3003, 3004, 3005, 3006, 3007, 3008, 3009, 3010];
+const AUTO_HOSTS = ["127.0.0.1", "localhost"];
 
 const statusText = document.getElementById("statusText");
 const openBtn = document.getElementById("openBtn");
@@ -29,6 +31,10 @@ function showUi() {
   document.body.classList.remove("booting");
 }
 
+function unique(values) {
+  return [...new Set(values)];
+}
+
 function normalizeBase(input) {
   const raw = (input || "").trim();
   if (!raw) return DEFAULT_BASE;
@@ -47,24 +53,58 @@ async function getBase() {
   return base;
 }
 
+async function fetchWithTimeout(url, options = {}, timeoutMs = 900) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function checkHealth(base) {
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 2000);
-    const res = await fetch(`${base}/api/health`, { signal: controller.signal });
-    clearTimeout(timeout);
+    const res = await fetchWithTimeout(`${base}/api/health`);
     if (res.ok) {
       const body = await res.json();
       if (body && body.ok === true) return { online: true, mode: "health" };
     }
     if (res.status === 404) {
-      const rootRes = await fetch(`${base}/`, { method: "GET" });
+      const rootRes = await fetchWithTimeout(`${base}/`, { method: "GET" });
       if (rootRes.ok) return { online: true, mode: "legacy" };
     }
     return { online: false, mode: "offline" };
   } catch {
     return { online: false, mode: "offline" };
   }
+}
+
+function buildProbeBases(primaryBase) {
+  const candidates = [primaryBase, DEFAULT_BASE];
+  AUTO_HOSTS.forEach((host) => {
+    AUTO_PORTS.forEach((port) => {
+      candidates.push(`http://${host}:${port}`);
+    });
+  });
+  return unique(candidates.map((base) => normalizeBase(base)));
+}
+
+async function findReachableBase(primaryBase) {
+  const candidates = buildProbeBases(primaryBase);
+  const firstBase = candidates[0];
+  const firstStatus = await checkHealth(firstBase);
+  if (firstStatus.online) {
+    return { base: firstBase, status: firstStatus };
+  }
+
+  const restResults = await Promise.all(
+    candidates.slice(1).map(async (base) => ({ base, status: await checkHealth(base) }))
+  );
+  const found = restResults.find((result) => result.status.online);
+  if (found) return found;
+
+  return { base: firstBase, status: firstStatus };
 }
 
 function openDashboard(base) {
@@ -74,22 +114,24 @@ function openDashboard(base) {
 
 async function refreshStatus() {
   setStatus("status--pending", "Checking local service...");
-  const base = await getBase();
-  const status = await checkHealth(base);
-  if (status.online && status.mode === "health") {
+  const preferredBase = await getBase();
+  const { base, status } = await findReachableBase(preferredBase);
+
+  if (status.online) {
+    if (base !== preferredBase) {
+      apiBaseInput.value = base;
+      await storageSet({ [STORAGE_KEY]: base });
+    }
     openDashboard(base);
     return;
   }
-  if (status.online && status.mode === "legacy") {
-    openDashboard(base);
-    return;
-  }
-  setStatus("status--offline", `Cannot reach ${base}. Start the local server, then retry.`);
+
+  setStatus("status--offline", `Cannot reach ${preferredBase}. Start the local server, then retry.`);
   showUi();
 }
 
 openBtn.addEventListener("click", async () => {
-  const base = await getBase();
+  const base = normalizeBase(apiBaseInput.value || (await getBase()));
   openDashboard(base);
 });
 
