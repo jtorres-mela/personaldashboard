@@ -63,16 +63,29 @@ async function checkHealth(base) {
   }
 }
 
+function openDashboard(base) {
+  const url = `${base}/`;
+  try {
+    if (chrome?.tabs?.update) {
+      chrome.tabs.update({ url });
+      return;
+    }
+  } catch {}
+  window.location.assign(url);
+}
+
 async function refreshStatus() {
   setStatus("status--pending", "Checking local service...");
   const base = await getBase();
   const status = await checkHealth(base);
   if (status.online && status.mode === "health") {
-    setStatus("status--online", `Online at ${base}`);
+    setStatus("status--online", `Online at ${base}. Opening dashboard...`);
+    setTimeout(() => openDashboard(base), 120);
     return;
   }
   if (status.online && status.mode === "legacy") {
-    setStatus("status--online", `Connected at ${base}. Health check endpoint is missing.`);
+    setStatus("status--online", `Connected at ${base}. Opening dashboard...`);
+    setTimeout(() => openDashboard(base), 120);
     return;
   }
   setStatus("status--offline", `Cannot reach ${base}. Start the local server, then retry.`);
@@ -80,7 +93,7 @@ async function refreshStatus() {
 
 openBtn.addEventListener("click", async () => {
   const base = await getBase();
-  chrome.tabs.update({ url: `${base}/` });
+  openDashboard(base);
 });
 
 retryBtn.addEventListener("click", () => {
