@@ -1,4 +1,5 @@
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const express = require('express');
 const cors = require('cors');
@@ -6,13 +7,32 @@ const multer = require('multer');
 const { randomUUID } = require('crypto');
 const initSqlJs = require('sql.js');
 
-const DB_PATH = path.join(__dirname, 'data.db');
-let db;
+const APP_NAME = 'PersonalDashboard';
+const APP_VERSION = require('./package.json').version;
+const LOOPBACK_HOST = '127.0.0.1';
+const DEFAULT_PORT = 3000;
 
-async function loadDb() {
-  const SQL = await initSqlJs({ locateFile: (f) => path.join(__dirname, 'node_modules/sql.js/dist/', f) });
-  const fileBuffer = fs.existsSync(DB_PATH) ? fs.readFileSync(DB_PATH) : null;
-  db = fileBuffer ? new SQL.Database(new Uint8Array(fileBuffer)) : new SQL.Database();
+function defaultDataDir() {
+  if (process.platform === 'win32') {
+    return path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), APP_NAME);
+  }
+  if (process.platform === 'darwin') {
+    return path.join(os.homedir(), 'Library', 'Application Support', APP_NAME);
+  }
+  return path.join(process.env.XDG_DATA_HOME || path.join(os.homedir(), '.local', 'share'), APP_NAME);
+}
+
+const DATA_DIR = process.env.DASHBOARD_DATA_DIR || defaultDataDir();
+const DB_PATH = process.env.DASHBOARD_DB_PATH || path.join(DATA_DIR, 'data.db');
+
+let db;
+let SQL;
+
+function ensureDbDirectory() {
+  fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
+}
+
+function ensureSchema() {
   db.run(`
     CREATE TABLE IF NOT EXISTS notes (
       id TEXT PRIMARY KEY,
@@ -43,16 +63,26 @@ async function loadDb() {
     );
   `);
 
-  // Add order_num if missing
+  // Add order_num if missing.
   const cols = all("PRAGMA table_info('tasks')");
-  const hasOrder = cols.some(c => c.name === 'order_num');
+  const hasOrder = cols.some((c) => c.name === 'order_num');
   if (!hasOrder) {
-    run('ALTER TABLE tasks ADD COLUMN order_num REAL DEFAULT 0;');
-    run('UPDATE tasks SET order_num = rowid WHERE order_num IS NULL OR order_num = 0;');
+    db.run('ALTER TABLE tasks ADD COLUMN order_num REAL DEFAULT 0;');
+    db.run('UPDATE tasks SET order_num = rowid WHERE order_num IS NULL OR order_num = 0;');
   }
 }
 
+async function loadDb() {
+  SQL = await initSqlJs({ locateFile: (f) => path.join(__dirname, 'node_modules/sql.js/dist/', f) });
+  ensureDbDirectory();
+  const fileBuffer = fs.existsSync(DB_PATH) ? fs.readFileSync(DB_PATH) : null;
+  db = fileBuffer ? new SQL.Database(new Uint8Array(fileBuffer)) : new SQL.Database();
+  ensureSchema();
+  if (!fileBuffer) persist();
+}
+
 function persist() {
+  ensureDbDirectory();
   const data = db.export();
   const buffer = Buffer.from(data);
   fs.writeFileSync(DB_PATH, buffer);
@@ -78,6 +108,17 @@ function run(stmt, params = []) {
   persist();
 }
 
+function hasRequiredTables(candidateDb) {
+  const required = new Set(['notes', 'tasks', 'events', 'note_assets']);
+  const q = candidateDb.prepare("SELECT name FROM sqlite_master WHERE type='table'");
+  while (q.step()) {
+    const row = q.getAsObject();
+    required.delete(row.name);
+  }
+  q.free();
+  return Array.from(required);
+}
+
 async function main() {
   await loadDb();
 
@@ -88,11 +129,12 @@ async function main() {
       if (!origin || origin === 'null') return cb(null, true);
       try {
         const u = new URL(origin);
+        if (u.protocol === 'chrome-extension:' || u.protocol === 'moz-extension:') return cb(null, true);
         if (u.hostname === 'localhost' || u.hostname === '127.0.0.1') return cb(null, true);
       } catch {}
       return cb(new Error('Not allowed by CORS'));
     },
-    methods: ['GET', 'POST', 'PUT', 'DELETE']
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
   }));
   app.use((req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -119,6 +161,49 @@ async function main() {
   });
   app.use(express.static(path.join(__dirname), { dotfiles: 'ignore' }));
   const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+  const dbImportUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
+
+  app.get('/api/health', (_req, res) => {
+    res.json({
+      ok: true,
+      version: APP_VERSION,
+      uptime_sec: Math.floor(process.uptime())
+    });
+  });
+
+  app.get('/api/version', (_req, res) => {
+    res.json({
+      name: APP_NAME,
+      version: APP_VERSION
+    });
+  });
+
+  app.get('/api/db/export', (_req, res) => {
+    const buffer = Buffer.from(db.export());
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Disposition', 'attachment; filename="data.db"');
+    res.end(buffer);
+  });
+
+  app.post('/api/db/import', dbImportUpload.single('file'), (req, res) => {
+    if (!req.file) return res.status(400).json({ error: 'file required' });
+    try {
+      const candidateDb = new SQL.Database(new Uint8Array(req.file.buffer));
+      const missing = hasRequiredTables(candidateDb);
+      if (missing.length > 0) {
+        candidateDb.close();
+        return res.status(400).json({ error: `missing required tables: ${missing.join(', ')}` });
+      }
+
+      if (db?.close) db.close();
+      db = candidateDb;
+      ensureSchema();
+      persist();
+      return res.json({ ok: true, db_path: DB_PATH });
+    } catch (err) {
+      return res.status(400).json({ error: 'invalid sqlite database file' });
+    }
+  });
 
   // Notes
   app.get('/api/notes', (_req, res) => {
@@ -245,9 +330,11 @@ async function main() {
     res.json({ ok: true });
   });
 
-  const PORT = process.env.PORT || 3000;
-  app.listen(PORT, '127.0.0.1', () => {
-    console.log(`Server (static + API) running at http://127.0.0.1:${PORT}`);
+  const PORT = Number(process.env.PORT) || DEFAULT_PORT;
+  app.listen(PORT, LOOPBACK_HOST, () => {
+    console.log(`[dashboard] API running at http://${LOOPBACK_HOST}:${PORT}`);
+    console.log(`[dashboard] DB path: ${DB_PATH}`);
+    console.log(`[dashboard] Version: ${APP_VERSION}`);
   });
 }
 

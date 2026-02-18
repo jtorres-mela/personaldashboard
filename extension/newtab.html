@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Personal Dashboard</title>
+  <link rel="stylesheet" href="newtab.css">
+</head>
+<body>
+  <main class="shell">
+    <section class="panel">
+      <h1>Personal Dashboard</h1>
+      <p class="subtitle">Local companion app status</p>
+      <p id="statusText" class="status status--pending">Checking local service...</p>
+
+      <div class="actions">
+        <button id="openBtn" type="button">Open Dashboard</button>
+        <button id="retryBtn" type="button" class="ghost">Retry</button>
+      </div>
+
+      <details class="details">
+        <summary>Connection settings</summary>
+        <label for="apiBase">API base URL</label>
+        <input id="apiBase" type="text" spellcheck="false">
+        <button id="saveBtn" type="button" class="ghost">Save</button>
+      </details>
+    </section>
+  </main>
+
+  <script src="newtab.js"></script>
+</body>
+</html>

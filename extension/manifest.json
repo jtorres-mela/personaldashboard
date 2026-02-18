@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "Personal Dashboard Local",
+  "description": "New tab launcher for the local Personal Dashboard service.",
+  "version": "0.1.0",
+  "chrome_url_overrides": {
+    "newtab": "newtab.html"
+  },
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1/*",
+    "http://localhost/*"
+  ]
+}
