@@ -1,5 +1,6 @@
 const DEFAULT_BASE = "http://127.0.0.1:3000";
 const STORAGE_KEY = "dashboardApiBase";
+const EXPECTED_APP_NAME = "PersonalDashboard";
 const AUTO_PORTS = [3000, 3001, 3002, 3003, 3004, 3005, 3006, 3007, 3008, 3009, 3010];
 const AUTO_HOSTS = ["127.0.0.1", "localhost"];
 
@@ -63,16 +64,32 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 900) {
   }
 }
 
+function isLegacyDashboardHtml(html) {
+  return (
+    html.includes("<title>My Dashboard</title>") &&
+    html.includes('id="appContent"') &&
+    html.includes('data-app="tasks"')
+  );
+}
+
 async function checkHealth(base) {
   try {
-    const res = await fetchWithTimeout(`${base}/api/health`);
-    if (res.ok) {
-      const body = await res.json();
-      if (body && body.ok === true) return { online: true, mode: "health" };
+    const versionRes = await fetchWithTimeout(`${base}/api/version`);
+    if (versionRes.ok) {
+      const versionBody = await versionRes.json();
+      if (versionBody && versionBody.name === EXPECTED_APP_NAME) {
+        return { online: true, mode: "version" };
+      }
+      return { online: false, mode: "wrong-service" };
     }
-    if (res.status === 404) {
-      const rootRes = await fetchWithTimeout(`${base}/`, { method: "GET" });
-      if (rootRes.ok) return { online: true, mode: "legacy" };
+    if (versionRes.status === 404) {
+      const rootRes = await fetchWithTimeout(`${base}/`);
+      if (rootRes.ok) {
+        const html = await rootRes.text();
+        if (isLegacyDashboardHtml(html)) return { online: true, mode: "legacy-signature" };
+        return { online: false, mode: "wrong-service" };
+      }
+      return { online: false, mode: "offline" };
     }
     return { online: false, mode: "offline" };
   } catch {
@@ -127,6 +144,9 @@ async function refreshStatus() {
   }
 
   setStatus("status--offline", `Cannot reach ${preferredBase}. Start the local server, then retry.`);
+  if (status.mode === "wrong-service") {
+    setStatus("status--offline", `Found a service at ${preferredBase}, but it is not Personal Dashboard.`);
+  }
   showUi();
 }
 
